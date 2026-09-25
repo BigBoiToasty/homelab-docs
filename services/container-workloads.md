@@ -139,7 +139,7 @@ Fix:
 
 ### 3.3 Chrome GUI / Playwright (planned 1.5 GiB cap, `shm_size: 1gb`)
 
-The headless browser stack still runs **natively on the host, uncontained**: Xvfb → `x11vnc -nopw` on :5900 → websockify/noVNC on :3010, plus Google Chrome for Playwright MCP. The renderers use ~120–150 MiB each, about 1 GiB in total.
+The headless browser stack still runs **natively on the host, uncontained**: Xvfb `:99` → `x11vnc -nopw` on :5900 → websockify/noVNC on :3010 (both bound to the Tailscale IP only since 2026-09-25; start/stop with `/usr/local/bin/vnc-tailscale.sh`, which is **not** run at boot), plus Google Chrome for Playwright MCP. The renderers use ~120–150 MiB each, about 1 GiB in total.
 
 Rationale for the planned container limits: Chrome allocates one renderer per tab/iframe (100–300 MiB each). A 1.5 GiB cap bounds this to about 6–8 live tabs before the cgroup OOM-killer reaps a renderer; the tab crashes but the browser survives. `shm_size: 1gb` is required because Chrome uses `/dev/shm` for compositor/IPC buffers. Containerising also removes the unauthenticated VNC exposure.
 

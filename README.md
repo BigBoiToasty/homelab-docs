@@ -86,7 +86,7 @@ flowchart TB
                 CFD["cloudflared (systemd)"]
                 TSD["tailscaled 1.102"]
                 PLAYITD["playit.service (host)"]
-                VNC["Xvfb → x11vnc :5900 (no password)<br/>→ noVNC :3010 · Chrome (Playwright MCP)"]
+                VNC["Xvfb → x11vnc :5900 → noVNC :3010<br/>(tailnet-only) · Chrome (Playwright MCP)"]
                 SSHD["sshd :22"]
                 CERTBOT["certbot (apt + snap)<br/>/etc/letsencrypt"]
             end
@@ -143,7 +143,6 @@ flowchart TB
     classDef warn fill:#fff3cd,stroke:#b8860b,color:#333;
     classDef bad fill:#f8d7da,stroke:#a33,color:#333;
     class AI,PLAYITD,PLAYITC warn;
-    class VNC bad;
 ```
 
 **Reading the diagram**
@@ -221,7 +220,7 @@ Hard caps still sum to 9.5 GiB (~81 % of guest RAM), and the new uncapped Immich
 3. **Exposure:**
    - Every published port binds `0.0.0.0`, and the `INPUT` policy is `ACCEPT` with an empty `DOCKER-USER` chain.
    - n8n moved from loopback to `0.0.0.0:5678`.
-   - Ollama :11434 has no authentication; x11vnc :5900 runs with no password.
+   - Ollama :11434 has no authentication. (VNC was rebound to Tailscale-only on 2026-09-25.)
    - sshd permits root login with a password.
 
    Details in [architecture/networking-and-security.md](architecture/networking-and-security.md#6-security-posture).

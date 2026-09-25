@@ -143,8 +143,8 @@ Observed with `ss -tulpn` and `docker ps` on 2026-09-25. "Bind" is the host addr
 |---|---|---|---|---|---|
 | 22 | tcp | `0.0.0.0` / `[::]` | sshd | Remote dev (VS Code SSH) | Root + password auth enabled |
 | 111 | tcp/udp | `0.0.0.0` / `[::]` | rpcbind | NFS client support (no NFS mounts) | Disable until NFS is used |
-| 3010 | tcp | `0.0.0.0` | websockify / noVNC | Browser VNC for headless Chrome | No auth |
-| 5900 | tcp | `0.0.0.0` / `[::]` | x11vnc `-nopw` | Raw VNC to Xvfb | **No password** |
+| 3010 | tcp | tailnet IP only | websockify / noVNC | Browser VNC for headless Chrome | No auth; tailnet-only since 2026-09-25 |
+| 5900 | tcp | tailnet IP + `[::1]` | x11vnc `-nopw` | Raw VNC to Xvfb | No password; tailnet-only since 2026-09-25 |
 | 5353 | udp | `0.0.0.0` / `[::]` | avahi-daemon | mDNS | Not needed on a server |
 | 20241 | tcp | `127.0.0.1` | cloudflared | Tunnel metrics / `/ready` | Loopback only |
 | 41641 | udp | `0.0.0.0` / `[::]` | tailscaled | WireGuard | Expected |
@@ -209,7 +209,7 @@ Internal-only (exposed, not published): node_exporter `9100`, supabase-db `5432`
 | # | Severity | Finding (2026-09-25) | Fix |
 |---|---|---|---|
 | 1 | High | `sshd`: `PermitRootLogin yes`, `PasswordAuthentication yes`, `X11Forwarding yes`, no `authorized_keys` for root, no fail2ban | Add a key, then set `PasswordAuthentication no`, `PermitRootLogin prohibit-password`; install fail2ban or rely on Tailscale-only SSH. |
-| 2 | High | `x11vnc -nopw` on `0.0.0.0:5900` and noVNC on `0.0.0.0:3010` | Bind both to `127.0.0.1` or the tailnet IP and add `-rfbauth`. |
+| 2 | ~~High~~ Fixed 2026-09-25 | `x11vnc -nopw` and noVNC were on all interfaces including public IPv6 | Now started by `/usr/local/bin/vnc-tailscale.sh`: x11vnc `-listen <tailscale-ip> -listenv6 ::1`, websockify on `<tailscale-ip>:3010`. Verified refused on LAN and public IPv6. Still no VNC password (accepted: tailnet is single-user). |
 | 3 | High | No host firewall: `INPUT` policy `ACCEPT`, `DOCKER-USER` empty, while Ollama `11434` (no auth), RCON `25575`, Postgres `5432/6543`, Kong `8000/8443`, qBittorrent `8080` and 20+ admin UIs listen on all interfaces | Bind non-public services to `127.0.0.1` or the tailnet IP in Compose, **or** add `DOCKER-USER` rules that allow only `tailscale0` + the LAN subnet (Docker-published ports bypass `INPUT`). |
 | 4 | High | n8n regressed from `127.0.0.1:5678` to `0.0.0.0:5678`, bypassing nginx/TLS on the LAN | Restore `"127.0.0.1:5678:5678"`; nginx reaches it via the host gateway either way. |
 | 5 | Medium | `homepage` mounts the Docker socket **read-write** | Add `:ro`. |
