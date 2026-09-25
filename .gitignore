@@ -3,3 +3,9 @@
 *.pem
 secrets/
 *.log
+# Audit reports from scripts/audit-homelab.sh contain infrastructure detail.
+# They are inputs for updating the docs, never committed.
+audit.md
+audit-*.md
+*.audit.md
+audits/
