@@ -118,7 +118,7 @@ Only when no VM backup exists. Order matters; each step depends on the previous.
    chown -R 1000:1000 /srv/games/minecraft /docker/media/config /mnt/tank/media   # PUID/PGID 1000 = the primary login user
    ```
 
-   Prefer to mount `/docker` and `/mnt/tank` from dedicated disks/exports at this point (see storage recommendations in the workloads doc) instead of recreating them on the root disk.
+   Prefer to mount `/docker` and `/mnt/tank` from dedicated disks/exports at this point (see [architecture/host-and-vm.md → Recommended storage alignment](../architecture/host-and-vm.md#recommended-storage-alignment)) instead of recreating them on the root disk.
 7. **Stacks:** clone or copy `~/docker` (compose files + `.env` files restored from the secrets store, then `chmod 600` them), `~/Mush`, and `~/docker/supabase-service`. Restore data into the directories from §3. Bring up in dependency order:
 
    ```bash
