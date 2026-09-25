@@ -65,11 +65,11 @@ Use when the hypervisor boot device or the whole node is lost but the ZFS disks 
    | VMID / name | 100 / `debian` (guest hostname `debian-docker`) |
    | Machine | `q35` (guest reports `pc-q35-11.0`), OVMF/UEFI recommended for GPU passthrough |
    | CPU | 4 cores (guest sees `QEMU Virtual CPU version 2.5+`; use `cpu: host` for AVX in Ollama/Immich ML) |
-   | Memory | 12288 MB today, ballooning off. **Raise to 16–20 GB** when rebuilding (swap was full on 2026-09-25) |
+   | Memory | 12288 MB today, ballooning off (`virtio_balloon` not loaded in the guest). **Raise to 16–20 GB** when rebuilding (swap was full on 2026-09-25) |
    | Disks | `scsi0`: boot zvol on `fastpool` (502 GB); `scsi1`: 1.5 TB data disk for `/mnt/tank` (record its storage ID from `qm config 100` **now**, while the host is healthy). VirtIO SCSI, `discard=on`, `ssd=1` |
    | NIC | `virtio`, bridge `vmbr0` (guest interface `enp6s18`) |
    | Display | default (Virtio GPU) plus `hostpci0: <nvidia-pci-id>,pcie=1` for the RTX 2060 SUPER |
-   | Agent | `agent: 1` (and start `qemu-guest-agent` in the guest) |
+   | Agent | `agent: 1`. **Currently off**: the guest has no `org.qemu.guest_agent.0` port, so enabling the service alone is not enough. Set it on the host, stop/start the VM, then `systemctl enable --now qemu-guest-agent` |
    | Boot | `order=scsi0` |
 
 6. Re-enable passthrough on the host: IOMMU in `/etc/default/grub` (`intel_iommu=on` or `amd_iommu=on iommu=pt`), `vfio vfio_iommu_type1 vfio_pci` in `/etc/modules`, blacklist `nouveau`/`nvidia` on the host, `update-grub && update-initramfs -u`, reboot, confirm the card is bound to `vfio-pci` (`lspci -k`).

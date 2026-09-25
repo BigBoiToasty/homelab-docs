@@ -207,6 +207,7 @@ flowchart LR
 Facts from `lsblk`, `findmnt` and `/etc/fstab`:
 
 - The guest now has two block devices: `/dev/sda` (502 GB, one ext4 partition, root) and `/dev/sdb` (1.5 TB, ext4 directly on the disk, mounted `defaults,discard` at `/mnt/tank`). There are still **no** ZFS, NFS, CIFS or virtiofs mounts; `rpcbind` runs idle.
+- Per-container placement (from the audit's data-location map): **Immich's library is on `/dev/sdb` but its Postgres is on `/dev/sda`**. Supabase (DB, storage, config volume), both game servers, all `/docker` app configs and every named volume are on `/dev/sda`. Only the Immich library, Stirling configs, the media tree and the backups are on `/dev/sdb`. `/mnt/media` and `/mnt/photos` are still empty directories on the root disk.
 - Which Proxmox storage backs `/dev/sdb` is not visible from the guest. A 1.5 TB disk does not map neatly onto either pool as described (fastpool 8.72 TB, hddpool 2.72 TB). Run `qm config 100` and `zfs list -t volume` on the host and record the answer here.
 - The first inspection's "88 % full" root disk risk is resolved (the disk grew from 102 to 502 GB).
 - The game servers moved **off** `/mnt/tank` onto the root disk (`/srv/games`) on 2026-09-24, while their backups stay on `/mnt/tank/backups`. Data and backups now at least sit on different virtual disks.

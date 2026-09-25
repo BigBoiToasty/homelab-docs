@@ -273,14 +273,143 @@ section_system() {
 }
 
 # ---------------------------------------------------------------------------
-# 2. Storage
+# System services
 # ---------------------------------------------------------------------------
 
+# One row per unit. Pass full unit names (foo.service, foo.timer).
+service_rows() {
+  local u state sub enabled since
+  for u in "$@"; do
+    if ! unit_exists "$u"; then
+      printf '| %s | not installed | - | - | - |\n' "$u"
+      continue
+    fi
+    state=$(systemctl show -p ActiveState --value "$u" 2>/dev/null)
+    sub=$(systemctl show -p SubState --value "$u" 2>/dev/null)
+    enabled=$(systemctl is-enabled "$u" 2>/dev/null)
+    since=$(systemctl show -p ActiveEnterTimestamp --value "$u" 2>/dev/null)
+    printf '| %s | %s | %s | %s | %s |\n' "$u" "${state:--}" "${sub:--}" "${enabled:--}" "$(cell "$since")"
+  done
+}
+
+section_services() {
+  h2 "2. System Services"
+
+  h3 "Core services (expected active)"
+  printf '| Unit | Active | Sub-state | Enabled | Active since |\n|---|---|---|---|---|\n'
+  local core=(docker.service containerd.service cloudflared.service cron.service
+              certbot.timer snap.certbot.renew.timer tailscaled.service ssh.service
+              qemu-guest-agent.service)
+  service_rows "${core[@]}"
+  printf '\n'
+
+  local u down=()
+  for u in "${core[@]}"; do
+    unit_exists "$u" || continue
+    [[ $(systemctl is-active "$u" 2>/dev/null) == active ]] || down+=("$u")
+  done
+  if (( ${#down[@]} )); then
+    warn "Core units not active: ${down[*]}"
+  else
+    note "All installed core units are active."
+  fi
+
+  h3 "Other services of interest"
+  printf '| Unit | Active | Sub-state | Enabled | Active since |\n|---|---|---|---|---|\n'
+  service_rows nginx.service playit.service fail2ban.service x11vnc.service display-manager.service \
+               avahi-daemon.service rpcbind.service nvidia-persistenced.service \
+               unattended-upgrades.service cloudflared-update.timer
+  printf '\n'
+}
+
+# ---------------------------------------------------------------------------
+# Proxmox / guest environment
+# ---------------------------------------------------------------------------
+
+guest_environment() {
+  local virt vendor product agent_active agent_enabled channel balloon
+  virt=$(systemd-detect-virt 2>/dev/null || echo none)
+  vendor=$(cat /sys/class/dmi/id/sys_vendor 2>/dev/null || echo unknown)
+  product=$(cat /sys/class/dmi/id/product_name 2>/dev/null || echo unknown)
+  agent_active=$(systemctl is-active qemu-guest-agent 2>/dev/null)
+  agent_enabled=$(systemctl is-enabled qemu-guest-agent 2>/dev/null)
+  if [[ -e /dev/virtio-ports/org.qemu.guest_agent.0 ]]; then
+    channel="present (Proxmox has agent: 1)"
+  else
+    channel="absent (Proxmox VM option 'QEMU Guest Agent' is off)"
+  fi
+  lsmod 2>/dev/null | grep -q '^virtio_balloon' && balloon=loaded || balloon="not loaded"
+
+  printf '| Item | Value |\n|---|---|\n'
+  printf '| Hypervisor type | %s |\n'              "$(cell "$virt")"
+  printf '| Machine (DMI) | %s / %s |\n'          "$(cell "$vendor")" "$(cell "$product")"
+  printf '| vCPU model | %s |\n'                   "$(cell "$(awk -F': ' '/^model name/{ print $2; exit }' /proc/cpuinfo)")"
+  printf '| qemu-guest-agent service | %s / %s |\n' "${agent_active:-not installed}" "${agent_enabled:--}"
+  printf '| Guest agent virtio channel | %s |\n'   "$channel"
+  printf '| Memory balloon driver | %s |\n'        "$balloon"
+  printf '| Disk transport | %s |\n' \
+    "$(cell "$(lsblk -dno NAME,TRAN,MODEL -e 7,11 2>/dev/null | awk '{ $1 = $1; printf "%s%s", sep, $0; sep = "; " }')")"
+  printf '\n'
+
+  if [[ $virt == kvm && $vendor == QEMU ]]; then
+    note "Running as a KVM/QEMU guest, consistent with a Proxmox VE virtual machine."
+  fi
+  if [[ $agent_active != active || $channel == absent* ]]; then
+    warn "QEMU guest agent is not fully working (service: ${agent_active:-missing}; channel: ${channel%% *}). Proxmox backups will be crash-consistent, and the host cannot read guest IPs. Fix both sides: \`qm set <vmid> --agent 1\` on the host (needs a VM stop/start), then \`systemctl enable --now qemu-guest-agent\` in the guest."
+  fi
+}
+
+section_guest() {
+  h2 "3. Proxmox Guest Environment"
+  guest_environment
+}
+
+# ---------------------------------------------------------------------------
+# 4. Storage
+# ---------------------------------------------------------------------------
+
+# Filesystem backing each key path (Docker root, data mounts, stack dirs).
+key_mounts() {
+  local p paths=(/ /var/lib/docker /srv /docker "$DOCKER_ROOT")
+  shopt -s nullglob
+  paths+=(/mnt/*/)
+  shopt -u nullglob
+  printf '| Path | Mount point | Device | FS | Size | Used | Avail | Use%% |\n|---|---|---|---|---|---|---|---|\n'
+  for p in "${paths[@]}"; do
+    [[ -e $p ]] || continue
+    [[ $p == / ]] || p=${p%/}
+    df -h --output=target,source,fstype,size,used,avail,pcent "$p" 2>/dev/null | tail -n +2 \
+      | awk -v p="$p" '{ printf "| %s | %s | %s | %s | %s | %s | %s | %s |\n", p, $1, $2, $3, $4, $5, $6, $7 }'
+  done
+  printf '\n'
+}
+
+# Which filesystem each container's persistent data lands on.
+container_data_locations() {
+  printf '| Container | Host path (bind or volume) | Type | Lives on mount | Device |\n|---|---|---|---|---|\n'
+  local name type src mnt dev
+  # shellcheck disable=SC2046
+  t docker inspect --format '{{.Name}}{{range .Mounts}}	{{.Type}}|{{.Source}}{{end}}' $(t docker ps -q) 2>/dev/null \
+  | while IFS=$'\t' read -r name rest; do
+      name=${name#/}
+      IFS=$'\t' read -r -a mounts <<<"$rest"
+      for m in "${mounts[@]}"; do
+        type=${m%%|*}; src=${m#*|}
+        case $src in /etc/localtime|/var/run/docker.sock|/|'') continue ;; esac
+        read -r mnt dev < <(df --output=target,source "$src" 2>/dev/null | tail -n1)
+        printf '| %s | %s | %s | %s | %s |\n' "$name" "$(cell "$src")" "$type" "${mnt:-?}" "${dev:-?}"
+      done
+    done | sort
+  printf '\n'
+}
+
 section_storage() {
-  h2 "2. Storage"
+  h2 "4. Storage"
 
   block "Filesystems (df -hT)" \
     df -hT -x tmpfs -x devtmpfs -x overlay -x squashfs -x efivarfs
+  h3 "Key mount points (Docker root, data disks, stack directories)"
+  key_mounts
   block "Block devices" lsblk -o NAME,SIZE,TYPE,FSTYPE,MOUNTPOINT -e 7
   block "Persistent mounts (/etc/fstab, comments stripped)" \
     bash -c "grep -vE '^[[:space:]]*(#|\$)' /etc/fstab | sed -E 's/^(UUID|PARTUUID|LABEL)=[^[:space:]]+/<by-\\1>/'"
@@ -307,6 +436,12 @@ section_storage() {
       bash -c 'timeout 120 du -xsh "$@" 2>/dev/null | sort -rh' _ "${dirs[@]}"
   fi
 
+  if docker_ok; then
+    h3 "Where container data lives (each bind mount / volume → filesystem)"
+    note "Use this to see which disk holds each stack's persistent state (e.g. Immich library vs. its Postgres, Supabase volumes)."
+    container_data_locations
+  fi
+
   if [[ -d $DOCKER_ROOT ]]; then
     block "Stack layout under $DOCKER_ROOT (compose, scripts, configs; names only)" \
       bash -c 'find "$1" -maxdepth 3 \( -name ".git" -o -name "node_modules" -o -name "volumes" -o -name "data" -o -name "db" \) -prune -o \
@@ -316,7 +451,7 @@ section_storage() {
 }
 
 # ---------------------------------------------------------------------------
-# 3. Container audit
+# 5. Container audit
 # ---------------------------------------------------------------------------
 
 # Compose service definitions through an allowlist (no env values, commands,
@@ -400,7 +535,7 @@ runtime_wiring() {
 }
 
 section_docker() {
-  h2 "3. Container Audit"
+  h2 "5. Container Audit"
 
   if ! have docker; then warn "Docker CLI not found; container audit skipped."; return; fi
   if ! docker_ok; then warn "Docker daemon unreachable (not running, or no permission); container audit skipped."; return; fi
@@ -496,7 +631,7 @@ Default runtime: {{.DefaultRuntime}}'
 }
 
 # ---------------------------------------------------------------------------
-# 4. Networking and reverse proxy
+# 6. Networking and reverse proxy
 # ---------------------------------------------------------------------------
 
 # Emits one Markdown table row per nginx `server { }` block.
@@ -686,21 +821,7 @@ section_cloudflared() {
 }
 
 section_network() {
-  h2 "4. Networking & Reverse Proxy"
-
-  h3 "Service health"
-  printf '| Unit | Active | Enabled |\n|---|---|---|\n'
-  local unit
-  for unit in docker containerd cloudflared nginx playit tailscaled ssh fail2ban x11vnc display-manager \
-              qemu-guest-agent avahi-daemon rpcbind nvidia-persistenced unattended-upgrades; do
-    if unit_exists "$unit.service"; then
-      printf '| %s | %s | %s |\n' "$unit" \
-        "$(systemctl is-active "$unit" 2>/dev/null)" "$(systemctl is-enabled "$unit" 2>/dev/null)"
-    else
-      printf '| %s | not installed | - |\n' "$unit"
-    fi
-  done
-  printf '\n'
+  h2 "6. Networking & Reverse Proxy"
 
   h3 "Listening ports (from ss -tulpn, de-duplicated)"
   (( EUID == 0 )) || note "Not running as root: process owners may be missing."
@@ -744,7 +865,7 @@ section_network() {
 }
 
 # ---------------------------------------------------------------------------
-# 5. Security posture
+# 7. Security posture
 # ---------------------------------------------------------------------------
 
 ssh_posture() {
@@ -783,13 +904,13 @@ security_checks() {
 }
 
 section_security() {
-  h2 "5. Security Posture"
+  h2 "7. Security Posture"
   block "SSH daemon (effective settings)" ssh_posture
   block "Exposure checks" security_checks
 }
 
 # ---------------------------------------------------------------------------
-# 6. Automation: timers, cron, custom units, scripts
+# 8. Automation: timers, cron, custom units, scripts
 # ---------------------------------------------------------------------------
 
 custom_units() {
@@ -830,7 +951,7 @@ scripts_inventory() {
 }
 
 section_automation() {
-  h2 "6. Automation & Scheduled Jobs"
+  h2 "8. Automation & Scheduled Jobs"
   block "systemd timers" systemctl list-timers --all --no-pager
   h3 "Locally defined systemd units (/etc/systemd/system; ExecStart hidden)"
   custom_units
@@ -839,7 +960,7 @@ section_automation() {
 }
 
 # ---------------------------------------------------------------------------
-# 7. Stability signals
+# 9. Stability signals
 # ---------------------------------------------------------------------------
 
 oom_events() {
@@ -852,7 +973,7 @@ oom_events() {
 }
 
 section_stability() {
-  h2 "7. Stability Signals"
+  h2 "9. Stability Signals"
   block "OOM kills" oom_events
   block "Failed systemd units" systemctl --failed --no-pager --no-legend
   block "Error-level journal messages this boot (top 15 by message)" \
@@ -889,6 +1010,8 @@ main() {
   printf '_Generated %s · read-only snapshot · secrets redacted_\n' "$(date '+%Y-%m-%d %H:%M %Z')"
 
   section_system
+  section_services
+  section_guest
   section_storage
   section_docker
   section_network

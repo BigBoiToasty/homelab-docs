@@ -46,7 +46,8 @@ A single Proxmox VE 9.2 node hosts one primary guest, **VM 100 `debian-docker`**
 | TLS certs | 4 Let's Encrypt certs (one wildcard), 61–89 days to expiry | OK. Two certbot installs both have renewal timers (apt + snap) |
 | Cloudflare Tunnel | Active, 4/4 connections ready; ~20 QUIC timeout reconnects in 24 h; version 2026.9.1 flagged outdated | OK, noisy |
 | Tailscale | Running, 5 peers (4 online), no serve/funnel | OK |
-| QEMU guest agent | Installed but **inactive** | Unchanged. Enable for consistent PBS snapshots |
+| QEMU guest agent | Service installed but **inactive**, and the guest has **no agent virtio channel** (the Proxmox VM option is off) | Fix both sides: `qm set 100 --agent 1` + VM stop/start, then enable the service |
+| Core services | docker, containerd, cloudflared, cron, tailscaled, ssh active; `certbot.timer` + `snap.certbot.renew.timer` waiting | OK |
 | Pending OS updates | 40 packages; `unattended-upgrades` not installed | Action needed |
 
 ---
@@ -227,7 +228,7 @@ Hard caps still sum to 9.5 GiB (~81 % of guest RAM), and the new uncapped Immich
 4. **GPU unused.** Driver 535 in the guest blocks Ollama CUDA (needs 550+); Immich ML also runs on CPU.
 5. **Patch hygiene.** 40 pending apt updates, no `unattended-upgrades`, and `cloudflared` is behind (its auto-update timer is disabled).
 6. **Duplicate agents.** Two Playit agents (host + container) and two certbot installs.
-7. **QEMU guest agent inactive.** Hypervisor snapshots are crash-consistent only.
+7. **QEMU guest agent off on both sides.** The Proxmox VM option is disabled (no `org.qemu.guest_agent.0` channel in the guest) and the service is inactive, so hypervisor snapshots are crash-consistent only and Proxmox cannot see the guest's IPs.
 
 ---
 
@@ -240,6 +241,7 @@ The docs are regenerated from a live audit rather than edited from memory:
 bash ~/homelab-docs/scripts/audit-homelab.sh > ~/audit.md
 ```
 
+- Report sections: system overview, core service status (docker, cloudflared, cron, certbot timers, …), Proxmox guest environment (hypervisor, guest agent service **and** virtio channel), storage (key mount points plus a per-container map of which disk each bind mount/volume lives on), containers, networking, security, automation, stability.
 - The script is read-only. It never opens `.env` files, token files, certificates or script bodies. It reads compose files through an allowlist (image, ports, mounts, networks, limits, env var **names** only). All output passes through a fail-closed redaction filter.
 - Host masking is on by default: domains become `example.com`, and public, tailnet and link-local IPs, MACs, UUIDs, e-mail addresses and login names are replaced. `--show-hosts` disables it; never share that output.
 - The report file is `chmod 600`, and the script warns if it would be tracked by git. `audit.md`, `audit-*.md`, `*.audit.md` and `audits/` are gitignored. **Reports are inputs, never committed.**
