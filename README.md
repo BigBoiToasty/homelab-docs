@@ -24,8 +24,8 @@ A single Proxmox VE 9.2 node hosts one primary guest, **VM 100 `debian-docker`**
 - **Application platform:** a full self-hosted Supabase stack (Postgres 17, Kong, GoTrue, PostgREST, Realtime, Storage, Studio, Supavisor), the "Mush" React front-end, and a **portfolio** static site (new).
 - **Management & observability:** Vaultwarden, Homepage, Uptime-Kuma, Dozzle, Prometheus + node-exporter + Grafana.
 - **Access:**
-  - **Containerized nginx** (`nginx-proxy`, the `reverse-proxy` stack) terminates TLS for five public vhosts. The host-native nginx from the first inspection is now disabled.
-  - A **Cloudflare Tunnel** (`cloudflared`, remotely managed) provides a second public ingress path.
+  - **Containerized nginx** (`nginx-proxy`, the `reverse-proxy` stack) terminates TLS for five vhosts. Their public DNS points at the Tailscale IP, so they are **tailnet-only**. The host-native nginx from the first inspection is now disabled.
+  - A **Cloudflare Tunnel** (`cloudflared`, remotely managed) publishes the apex domain → the portfolio site. That is the only public website; there are no router port-forwards.
   - Tailscale for private access.
   - Let's Encrypt certificates come from certbot with Cloudflare DNS-01.
   - A headless Chrome/Xvfb/noVNC stack still runs natively for Playwright MCP.
@@ -118,10 +118,10 @@ flowchart TB
     GPU --> VM100
     GPU -. "driver 535 too old for Ollama" .-> AI
 
-    USER -- "443/80 *.example.com" --> NGINX
-    USER --> CF
+    TSNET -- "*.example.com → Tailscale IP" --> NGINX
+    USER -- "example.com" --> CF
     CF <--> CFD
-    CFD -. "ingress rules live in the<br/>Cloudflare dashboard" .-> NGINX
+    CFD -- "tunnel → :8090" --> PORT
     LE -. "renew" .-> CERTBOT
     CERTBOT -. "/etc/letsencrypt (ro)" .-> NGINX
     NGINX -- "host.docker.internal:&lt;port&gt;" --> IMM
@@ -152,7 +152,7 @@ flowchart TB
   - `/dev/sdb` (1.5 TB, ext4, `discard`) is mounted at `/mnt/tank` and holds bulk data: the Immich library (23 GB), Stirling-PDF settings and heap dumps, the media tree and local backups.
 
   Which Proxmox storage backs `sdb` cannot be seen from inside the guest; confirm it with `qm config 100` on the host. `hddpool/media` and `hddpool/backups` are still not attached to the VM.
-- Public HTTP arrives by two routes: router port-forward → `nginx-proxy` on :80/:443, and the Cloudflare Tunnel. The tunnel is remotely managed, so which hostnames it serves is only visible in the Cloudflare dashboard. Record them in the networking doc once checked.
+- **Internet exposure (verified 2026-09-25):** only the apex domain (portfolio, via the Cloudflare Tunnel) and the Minecraft/Terraria ports (via Playit). The five app subdomains resolve publicly to the VM's Tailscale IP, so only tailnet devices can use them. The home IP is not in DNS and has no port-forwards.
 - Five Docker bridges carry the workloads: `server-net` (shared by the four home-grown stacks), `supabase_default`, `immich_default`, `mush_default`, `portfolio_default`, plus `reverse-proxy_default` for nginx. nginx reaches every upstream through the host (`host.docker.internal` or `172.17.0.1`), not through shared networks.
 
 ---
@@ -217,17 +217,18 @@ Hard caps still sum to 9.5 GiB (~81 % of guest RAM), and the new uncapped Immich
 
 1. **Memory and CPU exhaustion.** Swap is 99 % used and the load average peaked at ~80. RCU stalls and NIC watchdog timeouts mean the guest is periodically stalling; that is also the likely cause of the Cloudflare Tunnel QUIC timeouts. Fix: more RAM for VM 100 (or move Immich ML elsewhere), set the VM CPU type to `host`, and check the host for CPU overcommit.
 2. **Backups are incomplete and not off-box.** No VM-level backup job exists and the guest agent is off. The Terraria backup broke on 2026-09-24. Supabase, Immich (DB + 23 GB library), Vaultwarden and n8n have no backup at all. Everything that is backed up sits on the same VM.
-3. **Exposure:**
+3. **LAN/tailnet exposure** (not internet-facing):
    - Every published port binds `0.0.0.0`, and the `INPUT` policy is `ACCEPT` with an empty `DOCKER-USER` chain.
    - n8n moved from loopback to `0.0.0.0:5678`.
    - Ollama :11434 has no authentication. (VNC was rebound to Tailscale-only on 2026-09-25.)
    - sshd permits root login with a password.
 
    Details in [architecture/networking-and-security.md](architecture/networking-and-security.md#6-security-posture).
-4. **GPU unused.** Driver 535 in the guest blocks Ollama CUDA (needs 550+); Immich ML also runs on CPU.
-5. **Patch hygiene.** 40 pending apt updates, no `unattended-upgrades`, and `cloudflared` is behind (its auto-update timer is disabled).
-6. **Duplicate agents.** Two Playit agents (host + container) and two certbot installs.
-7. **QEMU guest agent off on both sides.** The Proxmox VM option is disabled (no `org.qemu.guest_agent.0` channel in the guest) and the service is inactive, so hypervisor snapshots are crash-consistent only and Proxmox cannot see the guest's IPs.
+4. **Public game servers are open to anyone:** Minecraft has no whitelist and Terraria has no password (both are reachable through Playit).
+5. **GPU unused.** Driver 535 in the guest blocks Ollama CUDA (needs 550+); Immich ML also runs on CPU.
+6. **Patch hygiene.** 40 pending apt updates, no `unattended-upgrades`, and `cloudflared` is behind (its auto-update timer is disabled).
+7. **Duplicate agents.** Two Playit agents (host + container) and two certbot installs.
+8. **QEMU guest agent off on both sides.** The Proxmox VM option is disabled (no `org.qemu.guest_agent.0` channel in the guest) and the service is inactive, so hypervisor snapshots are crash-consistent only and Proxmox cannot see the guest's IPs.
 
 ---
 

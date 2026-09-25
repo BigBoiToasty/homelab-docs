@@ -8,19 +8,19 @@
 |---|---|---|---|
 | Physical / LAN | Proxmox bridge → VM NIC `enp6s18` (virtio), DHCP | `192.168.x.x/24` + SLAAC IPv6 | Any LAN device |
 | Overlay | `tailscaled` 1.102.2, interface `tailscale0`, MagicDNS on, not an exit node, no `serve`/`funnel` | `100.x.x.x/32`, `fd7a:115c:a1e0::/48` | Devices on the tailnet (5 peers, 4 online) |
-| Public ingress (HTTP, direct) | **`nginx-proxy` container** (`nginx:alpine`, `reverse-proxy` stack) publishing `:80/:443`; certs from host certbot mounted read-only | Public DNS `*.example.com` → router port-forward (80/443) | Internet |
-| Public ingress (HTTP, tunnel) | **`cloudflared`** systemd service, remotely managed tunnel (token file), 4 edge connections | Cloudflare edge → outbound QUIC from the VM | Internet (hostnames configured in the Cloudflare dashboard) |
+| Private HTTPS (tailnet) | **`nginx-proxy` container** (`nginx:alpine`, `reverse-proxy` stack) publishing `:80/:443`; certs from host certbot mounted read-only | Public DNS A records for `n8n/immich/pdf/supabase/mush.example.com` point at the VM's **Tailscale IP** (no AAAA). No router port-forward: the home IP does not answer on 443 | Tailnet devices (and the LAN by IP) only. From the internet the names resolve to an unroutable 100.x address |
+| Public ingress (HTTP) | **`cloudflared`** systemd service, remotely managed tunnel (token file), 4 edge connections | Apex `example.com` (Cloudflare-proxied) → tunnel → `portfolio-web` :8090 | **Internet: the only public website** |
 | Public ingress (games) | Playit.gg agents (outbound UDP tunnel, no port-forward) | Relay-assigned public endpoints | Internet |
 | VPN egress | Gluetun → Mullvad WireGuard | Tunnel `10.x.x.x/32` | Only containers sharing Gluetun's netns |
 | Container bridges | Docker `bridge` driver, one per Compose project group | see §4 | Containers on the same bridge + host via published ports |
 
 ## 2. Ingress and routing flows
 
-### 2.1 Public HTTPS via `nginx-proxy`
+### 2.1 Private HTTPS via `nginx-proxy` (tailnet-only by DNS)
 
 ```mermaid
 flowchart LR
-    C["Client"] -->|"443 TLS (router forward)"| N["nginx-proxy container<br/>reverse-proxy_default"]
+    C["Tailnet client<br/>(DNS → Tailscale IP)"] -->|"443 TLS"| N["nginx-proxy container<br/>reverse-proxy_default"]
     N -->|"immich.example.com → host.docker.internal:2283"| IMM["immich_server"]
     N -->|"mush.example.com → host.docker.internal:8085"| MUSH["mush-frontend"]
     N -->|"n8n.example.com → 172.17.0.1:5678"| N8N["n8n"]
@@ -53,11 +53,17 @@ How it is wired:
 | Service | `cloudflared.service` (systemd, enabled), binary `/usr/local/bin/cloudflared` |
 | Version | 2026.9.1. The daemon itself logs that 2026.9.3 is available; `cloudflared-update.timer` exists but is **disabled** |
 | Mode | Remotely managed: token read from a token file (`--token-file`), not on the command line |
-| Ingress rules | Defined in the Cloudflare Zero Trust dashboard; **not visible on the VM**. Record the hostname → service list here after checking the dashboard |
+| Ingress rules | Defined in the Cloudflare dashboard (not visible on the VM). Verified from outside on 2026-09-25: the apex `example.com` serves the same content as `portfolio-web` (:8090). No subdomain uses the tunnel |
 | Health | `/ready` on `127.0.0.1:20241` reports 4 ready connections |
 | Noise | ~20 `timeout: no recent network activity` reconnects and 1 DNS resolver timeout in 24 h. They coincide with the guest's CPU/swap stalls (README §4) rather than a tunnel fault |
 
-Open question to settle: with both a port-forward to `nginx-proxy` and a tunnel, there are two public paths. If the tunnel fronts the same hostnames, close the router forwards for 80/443 and let the tunnel be the only way in. That removes the public IP from DNS and puts Cloudflare Access in front if wanted.
+**Public exposure model (verified 2026-09-25):** the internet sees exactly three things:
+
+1. The static portfolio on the apex domain, via the tunnel.
+2. Minecraft via Playit.
+3. Terraria via Playit.
+
+Everything else, including the five nginx vhosts, resolves to the Tailscale IP and needs tailnet membership, or LAN access by raw IP. The home IP is not in DNS and has no port-forwards. To publish another app later, add a tunnel hostname (optionally behind Cloudflare Access) rather than opening router ports.
 
 ### 2.3 Tailscale mesh
 
@@ -210,8 +216,8 @@ Internal-only (exposed, not published): node_exporter `9100`, supabase-db `5432`
 |---|---|---|---|
 | 1 | High | `sshd`: `PermitRootLogin yes`, `PasswordAuthentication yes`, `X11Forwarding yes`, no `authorized_keys` for root, no fail2ban | Add a key, then set `PasswordAuthentication no`, `PermitRootLogin prohibit-password`; install fail2ban or rely on Tailscale-only SSH. |
 | 2 | ~~High~~ Fixed 2026-09-25 | `x11vnc -nopw` and noVNC were on all interfaces including public IPv6 | Now started by `/usr/local/bin/vnc-tailscale.sh`: x11vnc `-listen <tailscale-ip> -listenv6 ::1`, websockify on `<tailscale-ip>:3010`. Verified refused on LAN and public IPv6. Still no VNC password (accepted: tailnet is single-user). |
-| 3 | High | No host firewall: `INPUT` policy `ACCEPT`, `DOCKER-USER` empty, while Ollama `11434` (no auth), RCON `25575`, Postgres `5432/6543`, Kong `8000/8443`, qBittorrent `8080` and 20+ admin UIs listen on all interfaces | Bind non-public services to `127.0.0.1` or the tailnet IP in Compose, **or** add `DOCKER-USER` rules that allow only `tailscale0` + the LAN subnet (Docker-published ports bypass `INPUT`). |
-| 4 | High | n8n regressed from `127.0.0.1:5678` to `0.0.0.0:5678`, bypassing nginx/TLS on the LAN | Restore `"127.0.0.1:5678:5678"`; nginx reaches it via the host gateway either way. |
+| 3 | Medium (LAN/tailnet only) | No host firewall: `INPUT` policy `ACCEPT`, `DOCKER-USER` empty, while Ollama `11434` (no auth), RCON `25575`, Postgres `5432/6543`, Kong `8000/8443`, qBittorrent `8080` and 20+ admin UIs listen on all interfaces | Bind non-public services to `127.0.0.1` or the tailnet IP in Compose, **or** add `DOCKER-USER` rules that allow only `tailscale0` + the LAN subnet (Docker-published ports bypass `INPUT`). |
+| 4 | Low | n8n regressed from `127.0.0.1:5678` to `0.0.0.0:5678`, bypassing nginx/TLS on the LAN | Restore `"127.0.0.1:5678:5678"`; nginx reaches it via the host gateway either way. |
 | 5 | Medium | `homepage` mounts the Docker socket **read-write** | Add `:ro`. |
 | 6 | Medium | Secrets written literally in compose files: Gluetun `WIREGUARD_PRIVATE_KEY` (`media`), Minecraft/mc-backup `RCON_PASSWORD` and Playit `SECRET_KEY` (`gaming`) | Move to each project's `.env`, reference as `${VAR}`. |
 | 7 | Medium | All `.env` files are mode `644` (world-readable), including Supabase's ~20 key-material values | `chmod 600` every `.env` under `~/docker` and `~/Mush`. |
@@ -220,7 +226,10 @@ Internal-only (exposed, not published): node_exporter `9100`, supabase-db `5432`
 | 10 | Medium | Duplicate Playit agents (host + container) | `systemctl disable --now playit`. |
 | 11 | Low | Two certbot installs with two renewal timers, no nginx reload hook | Keep one; add a deploy hook that reloads `nginx-proxy`. |
 | 12 | Low | avahi and rpcbind listening with no consumer | `systemctl disable --now avahi-daemon rpcbind`. |
-| 13 | Low | Two public HTTP paths (router forward + Cloudflare Tunnel) | Decide on one (§2.2). |
+| 13 | Medium | Minecraft is public via Playit with `online-mode=true` but **no whitelist** (0 entries, `enforce-whitelist=false`) and no ops | Set `ENABLE_WHITELIST=true`, `ENFORCE_WHITELIST=true` and `WHITELIST=<names>` in the `gaming` compose, then recreate. |
+| 14 | Medium | Terraria is public via Playit with **no server password** | Add `password=<YOUR_SECRET>` to `serverconfig.txt` (or the image's password variable). |
+| 15 | Low | Confirm in the Playit dashboard that only 25565 and 7777 are tunnelled, not RCON 25575 | Delete any other tunnels. |
+| 16 | Info | Accounts that control everything: the Tailscale login (joins the tailnet), the Cloudflare account and the Cloudflare API token in `~/docker/.env` (DNS + tunnel) | 2FA on both identity providers; scope the API token to `Zone:DNS:Edit` on one zone; `chmod 600` the `.env`; review the 5 tailnet devices. |
 
 ### 6.3 Token scrubbing rules for this documentation
 
