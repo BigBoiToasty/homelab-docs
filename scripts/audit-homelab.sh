@@ -299,9 +299,11 @@ section_storage() {
   shopt -s nullglob
   [[ -d $DOCKER_ROOT ]] && dirs+=("$DOCKER_ROOT"/*/)
   [[ -d $DATA_ROOT ]]   && dirs+=("$DATA_ROOT"/*/)
+  [[ -d /docker ]]      && dirs+=(/docker/*/)
+  [[ -d /srv ]]         && dirs+=(/srv/*/)
   shopt -u nullglob
   if (( ${#dirs[@]} )); then
-    block "Directory sizes ($DOCKER_ROOT and $DATA_ROOT)" \
+    block "Directory sizes (stacks, data, /docker, /srv)" \
       bash -c 'timeout 120 du -xsh "$@" 2>/dev/null | sort -rh' _ "${dirs[@]}"
   fi
 
@@ -689,7 +691,7 @@ section_network() {
   h3 "Service health"
   printf '| Unit | Active | Enabled |\n|---|---|---|\n'
   local unit
-  for unit in docker containerd cloudflared nginx tailscaled ssh fail2ban x11vnc display-manager \
+  for unit in docker containerd cloudflared nginx playit tailscaled ssh fail2ban x11vnc display-manager \
               qemu-guest-agent avahi-daemon rpcbind nvidia-persistenced unattended-upgrades; do
     if unit_exists "$unit.service"; then
       printf '| %s | %s | %s |\n' "$unit" \
