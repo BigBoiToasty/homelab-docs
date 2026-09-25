@@ -7,7 +7,7 @@
 
 | Container | Image | Port | Data lives in | Notes |
 |---|---|---|---|---|
-| vaultwarden | `vaultwarden/server:latest` | 8222→80 | `/docker/media/config/vaultwarden` | **Sign-ups are open** (`SIGNUPS_ALLOWED=true`); no domain name. **No backup.** |
+| vaultwarden | `vaultwarden/server:latest` | 8222→80 | `/docker/media/config/vaultwarden` | Served at `https://vaultwarden.example.com` since 2026-09-25 (needs its DNS record). **Sign-ups are open**. **No backup.** |
 | homepage | `ghcr.io/gethomepage/homepage:latest` | 3000 | `/docker/media/config/homepage` | Mounts the Docker socket **read-write**; read-only is enough |
 | uptime-kuma | `louislam/uptime-kuma:1` | 3001 | `/docker/media/uptime-kuma` | healthy |
 | dozzle | `amir20/dozzle:latest` | 8888→8080 | Docker socket (read-only) | Live container logs |
@@ -15,9 +15,11 @@
 | node_exporter | `prom/node-exporter:latest` | internal 9100 | reads `/` read-only | VM CPU/RAM/disk metrics |
 | grafana | `grafana/grafana:latest` | 3005→3000 | volume `monitoring_grafana_data` | Dashboards |
 
-**Who can reach it:** LAN + tailnet by port. None of these have a domain name, and none are on the internet.
+**Who can reach it:** LAN + tailnet by port; Vaultwarden also by name over Tailscale. None are on the internet.
 
 ## Vaultwarden
+
+**Why it "didn't work" (fixed 2026-09-25):** `DOMAIN` was set to `https://vaultwarden.example.com`, but that name had no DNS record and no nginx site. Bitwarden apps and the web vault require HTTPS, so `http://<ip>:8222` can't be used either. There was no working way in. Fix: `add-site.sh vaultwarden 8222 --max-body 525M` (done), plus a Cloudflare DNS **A** record `vaultwarden` → Tailscale IP, DNS only (**to do**). Then point the Bitwarden apps at `https://vaultwarden.example.com` (Settings → self-hosted → Server URL).
 
 This is the highest-value data in the stack, and it has no backup.
 

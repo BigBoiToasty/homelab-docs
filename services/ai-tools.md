@@ -15,6 +15,8 @@
 
 ## n8n
 
+**Why notifications stopped (found 2026-09-25):** the only workflow is *Gmail Trigger → Ollama (summarize) → Discord*. Since ~2026-09-19 the Gmail trigger fails with "Access could not be refreshed … refresh token expired". No emails get in, so Ollama and Discord are never called. Ollama itself is fine; it responds, it's just idle. Fix: in n8n → Credentials → Gmail → **Reconnect**. If the Google Cloud OAuth app is in *Testing* mode, Google expires its tokens every 7 days; set it to *In production* (OAuth consent screen → Publish app) so it stops breaking weekly. Run history: 26 successes, 96 errors.
+
 - Backups: **none.** Everything is in `/docker/appdata/n8n`: `database.sqlite` holds the workflows and `config` holds the encryption key. Without that key, saved credentials can't be decrypted after a restore.
 - The port binding regressed from loopback (`127.0.0.1:5678`) to all interfaces. nginx reaches it through the host either way, so set it back to `"127.0.0.1:5678:5678"`.
 - Memory: the 1 GiB cap keeps a runaway workflow from starving the game servers. Add `NODE_OPTIONS=--max-old-space-size=768` so Node cleans up memory before the cap kills it.

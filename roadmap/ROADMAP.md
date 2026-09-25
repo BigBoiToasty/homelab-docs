@@ -13,6 +13,10 @@
   1. Raise VM 100 from 12 GB to 16–20 GB RAM in Proxmox (if the host has room).
   2. Cap Immich: `immich_machine_learning` → `mem_limit: 1536m` + `MACHINE_LEARNING_WORKERS=1`; `immich_server` → `mem_limit: 3g`.
   3. Set the VM CPU type to `host`.
+  4. The host only has **16 GB total** (Proxmox ~4 + VM 12), so the VM can't grow much. On the host, check ZFS's cache isn't competing: `grep -E '^(size|c_max) ' /proc/spl/kstat/zfs/arcstats` (cap it at ~1–2 GB if it's larger).
+  5. Real long-term fix: a RAM upgrade to 32 GB. The GPU driver upgrade also helps a lot: it moves Ollama's 5 GB model from RAM into the GPU's 8 GB of VRAM.
+
+  Diagnosis 2026-09-25: `immich_server` alone used 6.8 GB (3.9 RAM + 2.9 swap) while processing the first import (4,258 videos transcoded on CPU, face detection, OCR). Failing ML requests were being retried, adding more load. Tonight: let it run; lower Immich job concurrency to 1 and turn off OCR until the backlog clears.
 
   Adding *more swap* would only hide the problem; swap is what's making the VM crawl. → [services/README.md#memory-budget-12-gb-vm](../services/README.md#memory-budget-12-gb-vm)
 - [ ] **Tune Immich background uploads/jobs.** Lower job concurrency in Admin → Jobs and run face detection / smart search overnight so they don't fight the game servers. → [services/immich.md](../services/immich.md#memory-and-cpu)
@@ -20,6 +24,9 @@
 ## 🟠 Short-term / immediate
 
 Things that can lose data or are one-line fixes.
+
+- [ ] **Vaultwarden: add the DNS record.** Cloudflare DNS → A record `vaultwarden` → the server's Tailscale IP, DNS only. The nginx site already exists (2026-09-25). → [services/management.md](../services/management.md#vaultwarden)
+- [ ] **n8n: reconnect the Gmail credential** and publish the Google OAuth app to *In production* so the token stops expiring weekly. This is why the Discord notifications stopped. → [services/ai-tools.md](../services/ai-tools.md#n8n)
 
 - [ ] **Fix the Terraria backup.** The cron still archives `/mnt/tank/terraria`, which has been gone since the move to `/srv/games` on 2026-09-24. `crontab -e` → change `-C /mnt/tank/terraria` to `-C /srv/games/terraria`. → [services/gaming.md](../services/gaming.md#backups)
 - [ ] **Back up Immich (photos + database) off-site** with restic or Borg. Nightly `pg_dumpall` + the `library/` and `upload/` folders, first to `hddpool/backups`, then to an off-site repo (Backblaze B2, a friend's server…). → [services/immich.md](../services/immich.md#backup-not-set-up-yet)

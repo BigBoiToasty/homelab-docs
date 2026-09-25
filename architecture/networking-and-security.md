@@ -34,6 +34,7 @@ flowchart LR
 | `mush.conf` | `mush.example.com` | 443, 80→301 | `host.docker.internal:8085` | 200 |
 | `n8n.conf` | `n8n.example.com` | 443, 80→301 | `172.17.0.1:5678` | 200 |
 | `pdf.conf` | `pdf.example.com` | 443, 80→301 (**fixed**, was HTTP-only) | `host.docker.internal:8081` | 200 |
+| `vaultwarden.conf` (added 2026-09-25) | `vaultwarden.example.com` | 443, 80→301 | `host.docker.internal:8222` | 200 (DNS record still to add) |
 | `supabase.conf` | `supabase.example.com` | 443, 80→301 | `host.docker.internal:8000` (Kong only) | 401 (Kong requires an API key; expected) |
 
 How it is wired:
