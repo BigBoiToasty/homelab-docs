@@ -25,7 +25,7 @@
 
 Things that can lose data or are one-line fixes.
 
-- [ ] **Vaultwarden: add the DNS record.** Cloudflare DNS → A record `vaultwarden` → the server's Tailscale IP, DNS only. The nginx site already exists (2026-09-25). → [services/management.md](../services/management.md#vaultwarden)
+- [ ] **Media apps: decide whether to restore their pre-Sep-8 settings** from `/root/docker/media/config`. They were reset by the same path change as Vaultwarden. → [services/media.md](../services/media.md#settings-probably-lost-on-2026-09-08)
 - [ ] **n8n: reconnect the Gmail credential** and publish the Google OAuth app to *In production* so the token stops expiring weekly. This is why the Discord notifications stopped. → [services/ai-tools.md](../services/ai-tools.md#n8n)
 
 - [ ] **Fix the Terraria backup.** The cron still archives `/mnt/tank/terraria`, which has been gone since the move to `/srv/games` on 2026-09-24. `crontab -e` → change `-C /mnt/tank/terraria` to `-C /srv/games/terraria`. → [services/gaming.md](../services/gaming.md#backups)
@@ -47,7 +47,7 @@ Things that can lose data or are one-line fixes.
 - [ ] **Docker log rotation** in `/etc/docker/daemon.json` (`max-size 10m`, `max-file 3`). → [services/README.md](../services/README.md#docker-engine-settings)
 - [ ] **Patching:** install `unattended-upgrades` (40 updates pending), enable `cloudflared-update.timer`, and `docker compose pull` monthly, starting with the internet-facing ones (portfolio nginx, Minecraft, Playit).
 - [ ] **Move backups and media onto the ZFS pools:** mount `hddpool/backups` and `hddpool/media` into the VM (NFS or a virtual disk). → [architecture/host-and-vm.md](../architecture/host-and-vm.md#recommended-storage-alignment)
-- [ ] **LAN hardening (optional, if you ever share your network):** bind admin ports (Ollama 11434, Postgres 5432/6543, RCON 25575, dashboards) to `127.0.0.1` or the Tailscale IP, like VNC. Also: n8n back to `127.0.0.1:5678`, Homepage's Docker socket to `:ro`, Vaultwarden `SIGNUPS_ALLOWED=false`, SSH keys instead of the root password.
+- [ ] **LAN hardening (optional, if you ever share your network):** bind admin ports (Ollama 11434, Postgres 5432/6543, RCON 25575, dashboards) to `127.0.0.1` or the Tailscale IP, like VNC. Also: n8n back to `127.0.0.1:5678`, Homepage's Docker socket to `:ro`, SSH keys instead of the root password.
 - [ ] **Start VNC at boot:** turn `vnc-tailscale.sh` (and Xvfb) into systemd services.
 
 ## ⚪ Backlog / wishlist
@@ -65,6 +65,7 @@ Things that can lose data or are one-line fixes.
 
 ## ✅ Done
 
+- ✅ Vaultwarden reachable at its HTTPS name, **real vault restored** (it had silently been running on an empty database since 2026-09-08), sign-ups turned off (2026-09-25).
 - ✅ VNC / noVNC restricted to Tailscale only (2026-09-25).
 - ✅ Audit script + docs workflow (`scripts/audit-homelab.sh`, 2026-09-25).
 - ✅ Only the portfolio (via Cloudflare Tunnel) and the game ports are public; the app sites are tailnet-only (verified 2026-09-25).

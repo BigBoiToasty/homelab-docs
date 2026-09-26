@@ -39,6 +39,21 @@ flowchart LR
 
 Full networking detail: [architecture/networking-and-security.md §3](../architecture/networking-and-security.md#3-gluetun-vpn-network-mode-sharing).
 
+## Settings probably lost on 2026-09-08
+
+The same path change that emptied Vaultwarden hit these apps. Each has an **older, larger config** in `/root/docker/media/config/<app>` (last modified 2026-09-07), while the live config in `/docker/media/config/<app>` was started fresh on 2026-09-08:
+
+| App | Old config (`/root/docker/media/config`) | Live config (`/docker/media/config`) |
+|---|---|---|
+| sonarr | 60 MB | 12 MB |
+| radarr | 59 MB | 8.5 MB |
+| jellyfin | 32 MB | 0.7 MB |
+| prowlarr | 24 MB | 5.6 MB |
+| kavita | 16 MB | 2.5 MB |
+| lazylibrarian | 5.4 MB | 4.6 MB |
+
+If an app is missing indexers, users, libraries or API keys you set up before Sep 8, restore it the way Vaultwarden was restored: back up both folders, stop the container, copy the old folder over the live one, and start it. Settings changed since Sep 8 would be lost for that app. `/root/docker/media/config/nginx-proxy-manager` is a leftover from a retired proxy.
+
 ## Backups
 
 None, and they're not critical: app configs are small (`/docker/media/config`, ~35 MB) and the library is empty. Include `/docker/media` in the planned config backup ([roadmap](../roadmap/ROADMAP.md)).

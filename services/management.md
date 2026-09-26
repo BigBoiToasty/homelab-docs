@@ -7,7 +7,7 @@
 
 | Container | Image | Port | Data lives in | Notes |
 |---|---|---|---|---|
-| vaultwarden | `vaultwarden/server:latest` | 8222→80 | `/docker/media/config/vaultwarden` | Served at `https://vaultwarden.example.com` since 2026-09-25 (needs its DNS record). **Sign-ups are open**. **No backup.** |
+| vaultwarden | `vaultwarden/server:latest` | 8222→80 | `/docker/media/config/vaultwarden` | Served at `https://vaultwarden.example.com` (tailnet-only). Sign-ups **off** since 2026-09-25. **No backup.** |
 | homepage | `ghcr.io/gethomepage/homepage:latest` | 3000 | `/docker/media/config/homepage` | Mounts the Docker socket **read-write**; read-only is enough |
 | uptime-kuma | `louislam/uptime-kuma:1` | 3001 | `/docker/media/uptime-kuma` | healthy |
 | dozzle | `amir20/dozzle:latest` | 8888→8080 | Docker socket (read-only) | Live container logs |
@@ -19,11 +19,15 @@
 
 ## Vaultwarden
 
-**Why it "didn't work" (fixed 2026-09-25):** `DOMAIN` was set to `https://vaultwarden.example.com`, but that name had no DNS record and no nginx site. Bitwarden apps and the web vault require HTTPS, so `http://<ip>:8222` can't be used either. There was no working way in. Fix: `add-site.sh vaultwarden 8222 --max-body 525M` (done), plus a Cloudflare DNS **A** record `vaultwarden` → Tailscale IP, DNS only (**to do**). Then point the Bitwarden apps at `https://vaultwarden.example.com` (Settings → self-hosted → Server URL).
+**Why it "didn't work" (fixed 2026-09-25).** Two separate problems:
+
+1. **No way in.** `DOMAIN` was `https://vaultwarden.example.com`, but that name had no DNS record and no nginx site, and Bitwarden clients require HTTPS. Fixed with `add-site.sh vaultwarden 8222 --max-body 525M` plus a Cloudflare **A** record → Tailscale IP (DNS only).
+2. **The vault "reset" on 2026-09-08.** The `management` stack was recreated with its data path changed from `/root/docker/media/config/vaultwarden` to `/docker/media/config/vaultwarden`, a new empty folder. The server started as a fresh install (0 accounts). The real vault (1 account, 4 items, last change 2026-08-26) stayed in the old folder, and clients kept working only from their offline cache, unable to save. Fixed by copying the old data into the live path. Backups of both versions: `/root/vaultwarden-backup-20260925-1737/`. The empty folder was kept as `/docker/media/config/vaultwarden.empty-20260925`, and the old folder is still in place (delete both only once real backups exist).
+
+Afterwards `SIGNUPS_ALLOWED` was set to `false` (compose backup: `docker-compose.yml.bak-20260925`).
 
 This is the highest-value data in the stack, and it has no backup.
 
-- Set `SIGNUPS_ALLOWED=false` once your account exists.
 - Back up the `/docker/media/config/vaultwarden` folder: `db.sqlite3`, `attachments/`, and the `rsa_key*` files. Without the RSA keys, every client must log in again. For a safe live copy: `sqlite3 db.sqlite3 ".backup out.db"`.
 
 ## Monitoring gaps
