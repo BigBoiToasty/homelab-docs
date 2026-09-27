@@ -25,7 +25,9 @@ One VM runs all the Docker containers, rather than one VM or LXC per service. Th
 | GPU | NVIDIA RTX 2060 SUPER 8 GB, PCIe passthrough to VM 100 (`vfio-pci` on the host) |
 | Backup jobs | **none found** for VM 100 |
 
-To do on the host (the audit script can't see it): record `qm config 100`, `zpool status`, and which storage backs the VM's 1.5 TB second disk.
+Host RAM (checked 2026-09-26): 16 GB total. VM 12 GB, ZFS read cache (ARC) capped at 1.5 GB (Proxmox default, 10 %) and using ~0.2 GB, the rest is Proxmox. The ARC is not competing with the VM, but there is no spare RAM to give the VM either.
+
+To do on the host (the audit script can't see it): record `qm config 100` and `zpool status`.
 
 ## VM 100 `debian-docker`
 
@@ -70,7 +72,7 @@ Besides Docker, the VM runs a headless browser desktop used by Playwright (brows
 flowchart LR
     subgraph PVE["Proxmox"]
         A["VM 100 disk 0 (502 GB)<br/>on fastpool"]
-        B["VM 100 disk 1 (1.5 TB)<br/>backing storage: verify"]
+        B["VM 100 disk 1 (1.5 TB)<br/>on hddpool (HDD)"]
         E["hddpool/media"]
         F["hddpool/backups"]
         C["fastpool/appdata · photos"]
@@ -96,8 +98,8 @@ flowchart LR
 ```
 
 - **Boot disk `sda` (502 GB, 15 % used):** OS, Docker, all databases, app configs, game worlds, swap. It grew from 102 GB after the first inspection, so the old "88 % full" problem is gone.
-- **Data disk `sdb` (1.5 TB, ext4 with `discard`, mounted at `/mnt/tank`):** bulk files: Immich photos, Stirling data, media, and the in-VM backups.
-- **Not attached:** `hddpool/media`, `hddpool/backups`, `fastpool/photos`, `fastpool/appdata`. There are no ZFS/NFS mounts inside the VM. `/mnt/media` and `/mnt/photos` are empty folders on the boot disk, prepared but never used.
+- **Data disk `sdb` (1.5 TB, ext4 with `discard`, mounted at `/mnt/tank`, created 2026-09-24):** a virtual disk on **hddpool** (the HDDs), confirmed by the owner. Holds bulk files: Immich photos, Stirling data, media, and the in-VM backups.
+- **Not attached as datasets:** `hddpool/media`, `hddpool/backups`, `fastpool/photos`, `fastpool/appdata`. Media and backups already live on the HDDs through `sdb`, so that goal is met. There are no ZFS/NFS mounts inside the VM. `/mnt/media` and `/mnt/photos` are empty folders on the boot disk, prepared but never used.
 
 Which path belongs to which app: [services/README.md → Where data lives](../services/README.md#where-data-lives).
 
@@ -105,7 +107,7 @@ Which path belongs to which app: [services/README.md → Where data lives](../se
 
 | Move | To | How | Why |
 |---|---|---|---|
-| `/mnt/tank/backups` | `hddpool/backups` | NFS export from Proxmox (or a disk on `hddpool`) at `/mnt/backups` | Backups must not live in the same VM (ideally not the same pool) as the data |
-| `/mnt/tank/media` | `hddpool/media` | same, at `/mnt/media` | Bulk media belongs on the HDDs |
+| ~~`/mnt/tank/media`, `/mnt/tank/backups` → HDDs~~ | done | `sdb` is on hddpool (2026-09-24) | ✅ |
+| Backups out of the VM | Proxmox backup job → a different disk or off-site | vzdump/PBS | A VM backup must not depend on the VM itself |
 | `/mnt/tank/immich` | `fastpool/photos` | NFS export or dedicated disk | The dataset was made for this; allows ZFS snapshots of just the photos |
 | `/docker`, `/srv/games`, database dirs | `fastpool/appdata` | dedicated disk mounted at `/docker` | Separates app state from the OS for snapshots and restores |

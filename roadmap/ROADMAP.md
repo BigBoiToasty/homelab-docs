@@ -28,7 +28,6 @@ Things that can lose data or are one-line fixes.
 - [ ] **Media apps: decide whether to restore their pre-Sep-8 settings** from `/root/docker/media/config`. They were reset by the same path change as Vaultwarden. → [services/media.md](../services/media.md#settings-probably-lost-on-2026-09-08)
 - [ ] **n8n: reconnect the Gmail credential** and publish the Google OAuth app to *In production* so the token stops expiring weekly. This is why the Discord notifications stopped. → [services/ai-tools.md](../services/ai-tools.md#n8n)
 
-- [ ] **Fix the Terraria backup.** The cron still archives `/mnt/tank/terraria`, which has been gone since the move to `/srv/games` on 2026-09-24. `crontab -e` → change `-C /mnt/tank/terraria` to `-C /srv/games/terraria`. → [services/gaming.md](../services/gaming.md#backups)
 - [ ] **Back up Immich (photos + database) off-site** with restic or Borg. Nightly `pg_dumpall` + the `library/` and `upload/` folders, first to `hddpool/backups`, then to an off-site repo (Backblaze B2, a friend's server…). → [services/immich.md](../services/immich.md#backup-not-set-up-yet)
 - [ ] **Back up Supabase, Vaultwarden and n8n** in the same job (DB dump + folders). → [supabase.md](../services/supabase.md#backup-not-set-up-yet), [management.md](../services/management.md#vaultwarden), [ai-tools.md](../services/ai-tools.md#n8n)
 - [ ] **Turn on the QEMU guest agent (both sides)** and **create a Proxmox backup job for VM 100** to `hddpool/backups` (nightly, snapshot mode, keep 7 daily / 4 weekly). → [runbooks/disaster-recovery.md §5](../runbooks/disaster-recovery.md#5-backup-validation-and-hardening-plan)
@@ -46,7 +45,6 @@ Things that can lose data or are one-line fixes.
 - [ ] **Upgrade the NVIDIA driver to 550+** in the VM so Ollama (and Immich ML) use the GPU instead of CPU and RAM. → [services/ai-tools.md](../services/ai-tools.md#ollama-why-its-slow-right-now)
 - [ ] **Docker log rotation** in `/etc/docker/daemon.json` (`max-size 10m`, `max-file 3`). → [services/README.md](../services/README.md#docker-engine-settings)
 - [ ] **Patching:** install `unattended-upgrades` (40 updates pending), enable `cloudflared-update.timer`, and `docker compose pull` monthly, starting with the internet-facing ones (portfolio nginx, Minecraft, Playit).
-- [ ] **Move backups and media onto the ZFS pools:** mount `hddpool/backups` and `hddpool/media` into the VM (NFS or a virtual disk). → [architecture/host-and-vm.md](../architecture/host-and-vm.md#recommended-storage-alignment)
 - [ ] **LAN hardening (optional, if you ever share your network):** bind admin ports (Ollama 11434, Postgres 5432/6543, RCON 25575, dashboards) to `127.0.0.1` or the Tailscale IP, like VNC. Also: n8n back to `127.0.0.1:5678`, Homepage's Docker socket to `:ro`, SSH keys instead of the root password.
 - [ ] **Start VNC at boot:** turn `vnc-tailscale.sh` (and Xvfb) into systemd services.
 
@@ -65,6 +63,9 @@ Things that can lose data or are one-line fixes.
 
 ## ✅ Done
 
+- ✅ Media and backups on the HDD pool: 1.5 TB `hddpool` virtual disk at `/mnt/tank` (2026-09-24).
+- ✅ Checked the host's ZFS RAM cache: capped at 1.5 GB, not competing with the VM (2026-09-26).
+- ✅ Terraria backup cron points at `/srv/games/terraria` again.
 - ✅ Vaultwarden reachable at its HTTPS name, **real vault restored** (it had silently been running on an empty database since 2026-09-08), sign-ups turned off (2026-09-25).
 - ✅ VNC / noVNC restricted to Tailscale only (2026-09-25).
 - ✅ Audit script + docs workflow (`scripts/audit-homelab.sh`, 2026-09-25).
