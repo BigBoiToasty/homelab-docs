@@ -9,7 +9,7 @@
 |---|---|---|---|---|---|
 | minecraft | `itzg/minecraft-server:latest` | 25565 (game), 25575 (RCON) | 5 GiB | `/srv/games/minecraft/data → /data` | `TYPE=PAPER`, `USE_AIKAR_FLAGS`, `INIT_MEMORY=1G`, `MAX_MEMORY=4G`, `ENABLE_RCON`; healthy. Moved from `/mnt/tank/minecraft` on 2026-09-24. |
 | mc-backup | `itzg/mc-backup:latest` | — | 512 MiB | reads `/srv/games/minecraft` (ro), writes `/mnt/tank/backups/minecraft` | Daily, keeps 7 (9 archives present). Its `/data` is the *parent* of the server's data dir, so archives contain an extra `data/` level. |
-| terraria | `brammys/terraria:latest` | 7777 tcp+udp | 2 GiB | `/srv/games/terraria/Worlds`, `/srv/games/terraria/configs` | World last saved 2026-09-14. **Backup cron is broken** (see below). |
+| terraria | `brammys/terraria:latest` | 7777 tcp+udp | 2 GiB | `/srv/games/terraria/Worlds`, `/srv/games/terraria/configs` | World last saved 2026-09-14. Backed up nightly by cron. |
 | playit | `ghcr.io/playit-cloud/playit-agent:latest` | host network | none | — | `SECRET_KEY` written literally in compose. **A second agent also runs on the host** (`playit.service`). |
 
 ## Who can reach it
@@ -29,7 +29,7 @@ Access control today:
 | What | How | Where | State |
 |---|---|---|---|
 | Minecraft world | mc-backup: RCON `save-off` → `save-all` → tar → `save-on`, so backups are consistent without stopping the server | `/mnt/tank/backups/minecraft` | Working |
-| Terraria world | Root cron `0 4 * * *` tar | `/mnt/tank/backups/terraria` | **Broken since 2026-09-24**: the cron still archives `/mnt/tank/terraria`, which no longer exists. Fix: change its `-C` to `/srv/games/terraria`. Last good archive: `terraria_20260924.tar.gz` |
+| Terraria world | Root cron `0 4 * * *` tar of `/srv/games/terraria` | `/mnt/tank/backups/terraria` | Working again (path fixed ~2026-09-25 after breaking in the 2026-09-24 move) |
 
 Both backup folders are inside the same VM, so they don't protect against losing the VM. See [the roadmap](../roadmap/ROADMAP.md).
 

@@ -70,7 +70,7 @@ Details: [architecture/networking-and-security.md](architecture/networking-and-s
 | Containers | 🟢 40/40 running | 0 OOM kills |
 | Disk | 🟢 boot 15 %, data 3 % | 502 GB boot + 1.5 TB data disk |
 | Memory | 🔴 swap 7.9 / 8 GB | Immich + uncapped apps; the VM stalls under load |
-| Backups | 🔴 partial | Only Minecraft works; Terraria broken; **Immich, Supabase, Vaultwarden, n8n have none**; no VM backup |
+| Backups | 🔴 partial | Only the game worlds; **Immich, Supabase, Vaultwarden, n8n have none**; no VM backup |
 | Public exposure | 🟡 small | Portfolio + game servers (game servers have no whitelist/password) |
 | GPU | 🟡 unused by Ollama | Driver 535 too old; Jellyfin uses it |
 | Updates | 🟡 40 OS updates pending | No automatic updates |
@@ -79,7 +79,7 @@ Details: [architecture/networking-and-security.md](architecture/networking-and-s
 ## 📌 Current Focus & Roadmap
 
 - 🔴 **In Progress:** Optimizing Debian VM memory usage (more RAM for the VM, caps on Immich) and tuning Immich background jobs/uploads.
-- 🟠 **Urgent:** Fix the broken Terraria backup (one-line cron fix) and lock the public game servers (whitelist / password).
+- 🟠 **Urgent:** Set up a Proxmox backup job for the whole VM, and lock the public game servers (whitelist / password).
 - 🟡 **Next Up:** Setting up automated offsite backups for Supabase and Immich data (restic/Borg), plus a Proxmox backup job for the whole VM.
 - 📋 **Full List:** See [roadmap/ROADMAP.md](roadmap/ROADMAP.md) for detailed task tracking and future architecture plans.
 

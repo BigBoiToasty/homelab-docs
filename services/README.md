@@ -11,7 +11,7 @@
 | [supabase.md](supabase.md) | `supabase` (`~/docker/supabase-service`) | Database/auth backend for Mush | tailnet (`supabase.example.com`), LAN | ❌ no |
 | [ai-tools.md](ai-tools.md) | `ai-tools` (`~/docker/ai-tools`) | n8n automations, Ollama LLM, Stirling-PDF | tailnet (`n8n.`, `pdf.example.com`), LAN | ❌ no (n8n matters) |
 | [management.md](management.md) | `management` (`~/docker/management`) | Vaultwarden, dashboards, monitoring | LAN + tailnet by port | ❌ no (Vaultwarden matters) |
-| [gaming.md](gaming.md) | `gaming` (`~/docker/gaming`) | Minecraft, Terraria, Playit | **internet** (games via Playit), LAN, tailnet | ✅ Minecraft · ⚠️ Terraria broken |
+| [gaming.md](gaming.md) | `gaming` (`~/docker/gaming`) | Minecraft, Terraria, Playit | **internet** (games via Playit), LAN, tailnet | ✅ Minecraft, Terraria (inside the VM only) |
 | [media.md](media.md) | `media` (`~/docker/media`) | Jellyfin, *arr apps, VPN'd torrents, books | LAN + tailnet by port | not needed yet (empty library) |
 | [web-apps.md](web-apps.md) | `mush` (`~/Mush`), `portfolio` (`~/docker/portfolio`) | Mush front-end, portfolio site | portfolio: **internet** (tunnel); Mush: tailnet | source code only |
 | [../architecture/networking-and-security.md](../architecture/networking-and-security.md#21-private-https-via-nginx-proxy-tailnet-only-by-dns) | `reverse-proxy` (`~/docker/reverse-proxy`) | nginx in front of the tailnet sites | — | config is tiny; include in config backup |
