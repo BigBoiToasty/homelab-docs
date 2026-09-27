@@ -1,7 +1,12 @@
 # Homelab
 
-> One Proxmox server running one Debian VM (`debian-docker`) with **40 Docker containers**: photos, media, games, automation, a database platform, and a public portfolio site.
-> Last verified 2026-09-25 with [`scripts/audit-homelab.sh`](scripts/audit-homelab.sh). All secrets, IPs, usernames and the real domain are replaced with placeholders (`<YOUR_SECRET>`, `192.168.x.x`, `example.com`, `<user>`).
+**Last updated:** 2026-09-26
+
+**What changed:**
+- Vaultwarden fixed: it had been running on an empty database since Sep 8; the real vault is restored.
+- Immich finished its first import; its memory use is now capped (swap went from full to 1.3 GB).
+- Media and backups now live on a 1.5 TB HDD disk at `/mnt/tank`.
+- Docs reorganized into folders, with a roadmap.
 
 ## Where to find what
 
@@ -63,13 +68,13 @@ flowchart TB
 
 Details: [architecture/networking-and-security.md](architecture/networking-and-security.md).
 
-## Health snapshot (2026-09-25)
+## Health snapshot (2026-09-26)
 
 | | Status | Notes |
 |---|---|---|
 | Containers | 🟢 40/40 running | 0 OOM kills |
 | Disk | 🟢 boot 15 %, data 3 % | 502 GB boot + 1.5 TB data disk |
-| Memory | 🔴 swap 7.9 / 8 GB | Immich + uncapped apps; the VM stalls under load |
+| Memory | 🟡 swap 1.3 / 8 GB, ~1.7 GB RAM free | Better after capping Immich; Ollama on CPU would still overload it |
 | Backups | 🔴 partial | Only the game worlds; **Immich, Supabase, Vaultwarden, n8n have none**; no VM backup |
 | Public exposure | 🟡 small | Portfolio + game servers (game servers have no whitelist/password) |
 | GPU | 🟡 unused by Ollama | Driver 535 too old; Jellyfin uses it |
