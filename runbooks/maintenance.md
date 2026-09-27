@@ -15,10 +15,11 @@ ls -lt /mnt/tank/backups/minecraft /mnt/tank/backups/terraria | head   # newest 
 
 ## After a reboot
 
-Most things come back on their own (Docker containers, cloudflared, Tailscale, cron). Two things don't:
+Most things come back on their own (Docker containers, cloudflared, Tailscale, cron). Check these:
 
 1. **The Chrome/VNC desktop.** Start Xvfb and Chrome the way you normally do, then run `/usr/local/bin/vnc-tailscale.sh start`.
 2. **Check the containers.** Run `docker ps --format '{{.Names}} {{.Status}}' | grep -v Up`; it should print nothing.
+3. **Check the GPU.** `docker exec ollama ollama ps` should show the model on `100% GPU` after its first request. If Ollama or Jellyfin exited with `could not select device driver "nvidia"`, see [ai-tools → Ollama on the GPU](../services/ai-tools.md#ollama-on-the-gpu).
 
 ## Update containers
 
@@ -42,6 +43,18 @@ apt update && apt list --upgradable
 apt upgrade
 # If the kernel or NVIDIA driver was upgraded, reboot, then follow "After a reboot".
 ```
+
+**NVIDIA packages:** never remove them with a wildcard like `apt purge libnvidia-*`. That also matches `libnvidia-container1`, which takes the NVIDIA Container Toolkit with it, and the GPU containers stop starting (this happened on 2026-09-26). Check what apt will remove before confirming. The driver comes from NVIDIA's apt repo (`nvidia-official.list`), so `apt upgrade` can move it to a newer major version. Reboot afterwards and do the GPU check above.
+
+## Changing a container's data folder
+
+For example, when moving a service to another disk:
+
+1. Stop the container.
+2. Copy the **whole** folder and check that the important part came along (Minecraft: `world/`; databases: their data directory).
+3. Change the path in the service **and** in anything that backs it up (like `mc-backup`, or cron jobs).
+4. Start it and read the log. It must load the existing data, not create new data. Minecraft silently generates a new world if it can't find one (this happened on 2026-09-24).
+5. Keep the old folder until you've checked the service in normal use.
 
 ## Add a new website (tailnet-only)
 

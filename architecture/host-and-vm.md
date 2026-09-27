@@ -1,6 +1,6 @@
 # Host & VM
 
-> The physical Proxmox server and the one Debian VM that runs everything. Last verified 2026-09-25 (from inside the VM). Proxmox-side facts are from the 2026-09-16 inspection unless noted.
+> The physical Proxmox server and the one Debian VM that runs everything. Last verified 2026-09-26 (from inside the VM). Proxmox-side facts are from the 2026-09-16 inspection unless noted.
 
 ## The layers
 
@@ -21,13 +21,26 @@ One VM runs all the Docker containers, rather than one VM or LXC per service. Th
 |---|---|
 | Proxmox VE | 9.2.x (pve-manager 9.2.4 on 2026-09-16) |
 | ZFS `fastpool` | SSD pool, 8.72 TB. Datasets: `appdata`, `photos`, `vms`, and VM 100's boot disk |
-| ZFS `hddpool` | HDD pool, 2.72 TB. Datasets: `backups`, `media` (**neither is used by the VM yet**) |
+| ZFS `hddpool` | HDD pool, **~1.76 TB usable** (checked 2026-09-26; the earlier 2.72 TB was not the usable size). Holds `vm-100-disk-0`, the VM's 1.5 TB data disk. Datasets `backups` and `media` exist but are empty |
 | GPU | NVIDIA RTX 2060 SUPER 8 GB, PCIe passthrough to VM 100 (`vfio-pci` on the host) |
-| Backup jobs | **none found** for VM 100 |
+| Backup jobs | **none yet** for VM 100 (planned: see below) |
 
 Host RAM (checked 2026-09-26): 16 GB total. VM 12 GB, ZFS read cache (ARC) capped at 1.5 GB (Proxmox default, 10 %) and using ~0.2 GB, the rest is Proxmox. The ARC is not competing with the VM, but there is no spare RAM to give the VM either.
 
 To do on the host (the audit script can't see it): record `qm config 100` and `zpool status`.
+
+### hddpool space and the planned VM backup (2026-09-26)
+
+`zfs list -r hddpool` on the host showed `vm-100-disk-0` (1.46 TB) with a **reservation of the full 1.47 TB** (`refreservation`), although only ~56 GB is written. That left the pool only 291 GB free. The plan:
+
+1. `zfs set refreservation=none hddpool/vm-100-disk-0` frees ~1.4 TB at once, with no downtime. It's safe because deletions inside the VM reach the pool (`discard` works on `sdb`, and the weekly `fstrim.timer` is on).
+2. `zfs set quota=600G hddpool/backups` stops backups from ever filling the pool.
+3. `pvesm add dir hdd-backups --path /hddpool/backups --content backup --is_mountpoint yes`. The last flag stops Proxmox from writing onto its own boot disk if the dataset isn't mounted.
+4. Datacenter → Backup: VM 100, 03:00, snapshot mode, ZSTD, keep-daily 3 + keep-weekly 2 (~100 GB each, ~500 GB total). Then do one test restore to a new VM ID, with the GPU and network removed first.
+
+The pool is then overcommitted (1.5 TB disk + 600 GB quota > 1.76 TB). That's fine at today's usage, but add a "hddpool > 80 % full" alert.
+
+Why hddpool and not fastpool: VM 100's boot disk (all databases, Vaultwarden, configs) lives on fastpool. A backup on the same pool dies with it.
 
 ## VM 100 `debian-docker`
 
@@ -35,13 +48,13 @@ To do on the host (the audit script can't see it): record `qm config 100` and `z
 |---|---|
 | OS | Debian 12 (bookworm), kernel 6.1.0-52 |
 | Machine | QEMU q35, KVM |
-| CPU | 4 vCPU, model "QEMU Virtual CPU 2.5+". Set `cpu: host` so Ollama/Immich ML get AVX |
-| RAM | 12 GB, ballooning off, plus an 8 GB swapfile. **Swap was 99 % used** |
+| CPU | 4 vCPU, type `host` (shows as i3-12100, AVX2 available). Changed 2026-09-26 |
+| RAM | 12 GB, ballooning off, plus an 8 GB swapfile. Swap 5.1 GB used on 2026-09-26, but nothing actively swapping (it was 99 % on 09-25) |
 | Disks | `sda` 502 GB (boot), `sdb` 1.5 TB (data at `/mnt/tank`). Details below |
-| GPU | RTX 2060 SUPER, NVIDIA driver 535 (Ollama needs 550+) |
-| QEMU guest agent | **Off on both sides**: the service is inactive *and* Proxmox has the agent option disabled (no virtio channel in the guest). Fix: `qm set 100 --agent 1`, stop/start the VM, then `systemctl enable --now qemu-guest-agent` |
-| Uptime | rebooted 2026-09-23 ~12:20 |
-| Stability | This boot's kernel log has CPU stall warnings and network-card timeouts: signs the VM is starved of CPU (swap storms and/or an overloaded host) |
+| GPU | RTX 2060 SUPER, NVIDIA driver 615 (open kernel module) + container toolkit 1.20.1. Used by Ollama and Jellyfin |
+| QEMU guest agent | **On** in Proxmox and in the VM (2026-09-26) |
+| Uptime | rebooted 2026-09-26 ~17:10 |
+| Stability | No OOM kills and no CPU stall warnings this boot (the 09-23 boot had both) |
 
 ### Core services on the VM
 
@@ -51,10 +64,10 @@ To do on the host (the audit script can't see it): record `qm config 100` and `z
 | `cloudflared` | running | Cloudflare Tunnel: publishes the portfolio site |
 | `tailscaled` | running | Private network access to everything |
 | `ssh` | running | Remote login (root + password allowed; see security) |
-| `cron` | running | Terraria backup (broken path), Tailscale watchdog every 5 min |
+| `cron` | running | Terraria backup (04:00), Tailscale watchdog every 5 min |
 | `certbot.timer` + `snap.certbot.renew.timer` | waiting | Certificate renewal. **Two installs**; keep the snap one |
 | `playit` | running | Game tunnel agent. **Duplicate** of the `playit` container |
-| `qemu-guest-agent` | **inactive** | See above |
+| `qemu-guest-agent` | running | Lets Proxmox freeze the disks for consistent backups |
 | `nginx` (host) | disabled | Old; replaced by the `nginx-proxy` container |
 | `avahi-daemon`, `rpcbind` | running | Not needed; can be disabled |
 
@@ -72,22 +85,22 @@ Besides Docker, the VM runs a headless browser desktop used by Playwright (brows
 flowchart LR
     subgraph PVE["Proxmox"]
         A["VM 100 disk 0 (502 GB)<br/>on fastpool"]
-        B["VM 100 disk 1 (1.5 TB)<br/>on hddpool (HDD)"]
+        B["vm-100-disk-0 (1.5 TB)<br/>on hddpool (HDD)"]
         E["hddpool/media"]
         F["hddpool/backups"]
         C["fastpool/appdata · photos"]
     end
     subgraph VM["VM 100"]
-        SDA["/dev/sda1 ext4 494 GB (71 GB used)"]
+        SDA["/dev/sda1 ext4 494 GB (70 GB used)"]
         SDA --> R1["/var/lib/docker — images, containers, volumes"]
         SDA --> R2["/docker/appdata (4.9 GB), /docker/media (35 MB) — service configs"]
-        SDA --> R3["/srv/games — minecraft 567 MB, terraria 70 MB"]
+        SDA --> R3["/srv/games — minecraft/data, terraria (~400 MB)"]
         SDA --> R4["~/docker/supabase-service/volumes, ~/docker/immich/postgres — databases"]
         SDA --> R5["/swapfile 8 GB"]
-        SDB["/dev/sdb ext4 1.5 TB → /mnt/tank (~35 GB used)"]
-        SDB --> T1["immich/ 23 GB (photo library)"]
+        SDB["/dev/sdb ext4 1.5 TB → /mnt/tank (~56 GB used)"]
+        SDB --> T1["immich/ 47 GB (photo library)"]
         SDB --> T2["stirling-pdf/ 7.6 GB (heap dumps)"]
-        SDB --> T3["backups/ 790 MB (minecraft + terraria)"]
+        SDB --> T3["backups/ 1.3 GB (minecraft + terraria)"]
         SDB --> T4["media/ 72 KB (empty library)"]
     end
     A --> SDA

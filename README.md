@@ -3,10 +3,10 @@
 **Last updated:** 2026-09-26
 
 **What changed:**
-- Vaultwarden fixed: it had been running on an empty database since Sep 8; the real vault is restored.
-- Immich finished its first import; its memory use is now capped (swap went from full to 1.3 GB).
-- Media and backups now live on a 1.5 TB HDD disk at `/mnt/tank`.
-- Docs reorganized into folders, with a roadmap.
+- GPU works for Ollama: new NVIDIA driver (615), VM CPU type set to `host`, guest agent on. `qwen3:8b` answers at ~63 tokens/s instead of ~5 min per request.
+- Minecraft: the real world is back. Since Sep 24 the server had been running a freshly generated world because the world folder wasn't moved with the rest of the server. Backups now point at the right folder.
+- n8n Gmail workflow reconnected; Ollama keeps the model loaded (`OLLAMA_KEEP_ALIVE=-1`).
+- Proxmox backup job for the VM planned on hddpool (steps in the roadmap).
 
 ## Where to find what
 
@@ -74,18 +74,18 @@ Details: [architecture/networking-and-security.md](architecture/networking-and-s
 |---|---|---|
 | Containers | 🟢 40/40 running | 0 OOM kills |
 | Disk | 🟢 boot 15 %, data 3 % | 502 GB boot + 1.5 TB data disk |
-| Memory | 🟡 swap 1.3 / 8 GB, ~1.7 GB RAM free | Better after capping Immich; Ollama on CPU would still overload it |
-| Backups | 🔴 partial | Only the game worlds; **Immich, Supabase, Vaultwarden, n8n have none**; no VM backup |
+| Memory | 🟡 swap 5.1 / 8 GB, ~3.4 GB RAM available | Old pages parked in swap, no active swapping (`vmstat` si/so = 0). The Ollama model now sits in GPU memory |
+| Backups | 🔴 partial | Game worlds only (both verified 2026-09-26); **Immich, Supabase, Vaultwarden, n8n have none**; VM backup job not created yet |
 | Public exposure | 🟡 small | Portfolio + game servers (game servers have no whitelist/password) |
-| GPU | 🟡 unused by Ollama | Driver 535 too old; Jellyfin uses it |
-| Updates | 🟡 40 OS updates pending | No automatic updates |
-| Guest agent | 🟡 off | Off in Proxmox and in the VM |
+| GPU | 🟢 in use | Ollama (5.4 of 8 GB VRAM) and Jellyfin; driver 615 |
+| Updates | 🟡 50 OS updates pending | No automatic updates |
+| Guest agent | 🟢 on | On in Proxmox and in the VM; CPU type `host` |
 
 ## 📌 Current Focus & Roadmap
 
-- 🔴 **In Progress:** Optimizing Debian VM memory usage (more RAM for the VM, caps on Immich) and tuning Immich background jobs/uploads.
-- 🟠 **Urgent:** Set up a Proxmox backup job for the whole VM, and lock the public game servers (whitelist / password).
-- 🟡 **Next Up:** Setting up automated offsite backups for Supabase and Immich data (restic/Borg), plus a Proxmox backup job for the whole VM.
+- 🔴 **In Progress:** Proxmox backup job for VM 100 on hddpool (free the disk reservation, add the storage, create the job, test a restore).
+- 🟠 **Urgent:** Off-site backups for Immich, Supabase, Vaultwarden and n8n; lock the public game servers (whitelist / password).
+- 🟡 **Next Up:** Tune Immich background jobs, security quick wins (2FA, `.env` permissions), Stirling-PDF heap-dump cleanup.
 - 📋 **Full List:** See [roadmap/ROADMAP.md](roadmap/ROADMAP.md) for detailed task tracking and future architecture plans.
 
 ## Keeping these docs current

@@ -1,39 +1,49 @@
 # AI & automation stack (`ai-tools`): n8n, Ollama, Stirling-PDF
 
-> Compose project `~/docker/ai-tools` · network `server-net` · last verified 2026-09-25.
-> **In one line:** n8n runs automations, Ollama runs a local LLM (currently on CPU because the GPU driver is too old), and Stirling-PDF is a web PDF toolbox.
+> Compose project `~/docker/ai-tools` · network `server-net` · last verified 2026-09-26.
+> **In one line:** n8n runs automations, Ollama runs a local LLM on the GPU, and Stirling-PDF is a web PDF toolbox.
 
 ## Containers
 
 | Container | Image | Ports | Memory cap | Data lives in | Notes |
 |---|---|---|---|---|---|
 | n8n | `docker.n8n.io/n8nio/n8n:latest` | **`0.0.0.0:5678`** | 1 GiB | `/docker/appdata/n8n → /home/node/.n8n` (9 MB) | Owner account set up (login required). Served at `https://n8n.example.com` (tailnet-only). |
-| ollama | `ollama/ollama:latest` | 11434 | **none** | `/docker/appdata/ollama` (4.9 GB) | Model `qwen3:8b` (5.2 GB). `OLLAMA_KEEP_ALIVE=0`. **No authentication** on its API. |
+| ollama | `ollama/ollama:latest` | 11434 | **none** | `/docker/appdata/ollama` (4.9 GB) | Model `qwen3:8b` (5.2 GB), 100 % on the GPU. `OLLAMA_KEEP_ALIVE=-1` (model stays loaded). **No authentication** on its API. |
 | stirling-pdf | `frooodle/s-pdf:latest` | 8081→8080 | 1 GiB | `/mnt/tank/stirling-pdf/extraConfigs → /configs` | **No login** (`DOCKER_ENABLE_SECURITY=false`). Served at `https://pdf.example.com` (tailnet-only). |
 
 **Who can reach it:** tailnet (by domain name) and LAN (by port). Not the internet.
 
 ## n8n
 
-**Why notifications stopped (found 2026-09-25):** the only workflow is *Gmail Trigger → Ollama (summarize) → Discord*. Since ~2026-09-19 the Gmail trigger fails with "Access could not be refreshed … refresh token expired". No emails get in, so Ollama and Discord are never called. Ollama itself is fine; it responds, it's just idle. Fix: in n8n → Credentials → Gmail → **Reconnect**. If the Google Cloud OAuth app is in *Testing* mode, Google expires its tokens every 7 days; set it to *In production* (OAuth consent screen → Publish app) so it stops breaking weekly. Run history: 26 successes, 96 errors.
+**The workflow:** *Gmail Trigger* (polls every 15 min) → *Ollama* (`qwen3:8b`, temperature 0, JSON output) sorts each email: is it a real update on a job application (confirmation, assessment, interview, rejection) or noise (job alerts, newsletters)? It extracts company, job title and dates, then the result goes to Discord.
+
+**Gmail credential:** it broke around 2026-09-19 ("refresh token expired"), which is why notifications stopped. Reconnected 2026-09-26; n8n's calls to Ollama show up in its log again. If it breaks again after about a week, the Google Cloud OAuth app is still in *Testing* mode, which expires tokens every 7 days. Fix: OAuth consent screen → *Publish app*.
 
 - Backups: **none.** Everything is in `/docker/appdata/n8n`: `database.sqlite` holds the workflows and `config` holds the encryption key. Without that key, saved credentials can't be decrypted after a restore.
 - The port binding regressed from loopback (`127.0.0.1:5678`) to all interfaces. nginx reaches it through the host either way, so set it back to `"127.0.0.1:5678:5678"`.
 - Memory: the 1 GiB cap keeps a runaway workflow from starving the game servers. Add `NODE_OPTIONS=--max-old-space-size=768` so Node cleans up memory before the cap kills it.
 
-## Ollama: why it's slow right now
+## Ollama on the GPU
 
-| | Intended | Actual |
-|---|---|---|
-| Runs on | GPU (RTX 2060 SUPER, 8 GB VRAM) | **CPU**: the log says `NVIDIA driver too old … driver=535 required_driver="550 or newer"` |
-| Memory limit | strict cap | none |
-| Idle | — | model unloaded after every request (`OLLAMA_KEEP_ALIVE=0`) |
+Fixed 2026-09-26. Before that, Ollama ran on the CPU (the old driver 535 was too old for it), and one request took about 5 minutes.
 
-An 8B model needs ~5–6 GB. On the GPU that fits in VRAM and barely touches RAM; on the CPU it has to load into a VM whose RAM and swap are already full. Fix it in this order:
+| | Now |
+|---|---|
+| Driver | NVIDIA 615 from NVIDIA's own apt repo (`cuda-drivers-580` pulls in the newest `nvidia-driver`) |
+| Speed | ~63 tokens/s with `qwen3:8b` |
+| GPU memory | ~5.4 of 8 GB, held permanently |
+| System RAM | ~2 GB for the `llama-server` process |
+| Keep-alive | `OLLAMA_KEEP_ALIVE=-1` in `~/docker/ai-tools/docker-compose.yml` |
 
-1. Install NVIDIA driver 550+ in the VM (bookworm-backports or the NVIDIA CUDA repo), then reboot. The Proxmox host needs no driver, because the card is passed through.
-2. Add `mem_limit: 3g` and `memswap_limit: 5g`, plus `OLLAMA_MAX_LOADED_MODELS=1` and `OLLAMA_NUM_PARALLEL=1`.
-3. The same driver upgrade lets Immich's machine learning use the GPU too.
+**Why keep-alive is `-1`:** n8n polls Gmail every 15 minutes. Any keep-alive shorter than that unloads the model between polls, and every run then pays a 10–60 s reload. With the model always loaded, a request is answered almost instantly. The idle GPU still drops to ~15 W.
+
+**When to lower it:** if Immich's machine learning moves to the GPU, a bigger model is added, or the game-streaming plans (phases 3.1/3.3) start using the GPU, set it to about `20m` (just longer than the poll interval) so the 5.4 GB is freed when idle.
+
+After editing the compose file, run `docker compose up -d` in `~/docker/ai-tools`. A plain restart keeps the old settings.
+
+**If Ollama or Jellyfin won't start** with `could not select device driver "nvidia"`: the NVIDIA Container Toolkit is missing. That happened on 2026-09-26: `apt-get purge ... libnvidia-*` also matched `libnvidia-container1` and removed the toolkit with the old driver. Fix: `apt install nvidia-container-toolkit`, `nvidia-ctk runtime configure --runtime=docker`, `systemctl restart docker`.
+
+Still open: a RAM cap (`mem_limit`) for the container, and `OLLAMA_MAX_LOADED_MODELS=1`.
 
 ## Stirling-PDF: what the 7.6 GB really is
 

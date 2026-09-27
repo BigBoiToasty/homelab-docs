@@ -1,19 +1,19 @@
 # Disaster Recovery Runbook
 
 > Covers: Proxmox host loss, ZFS pool re-import, VM 100 loss, Docker stack and per-service data recovery, backup validation.
-> Based on the 2026-09-16 inspection, re-verified 2026-09-25 with `scripts/audit-homelab.sh`. Placeholders: `<PVE_LAN_IP>` = `192.168.x.x`, secrets = `<YOUR_SECRET>`, domains = `*.example.com`.
+> Based on the 2026-09-16 inspection, re-verified 2026-09-26 with `scripts/audit-homelab.sh`. Placeholders: `<PVE_LAN_IP>` = `192.168.x.x`, secrets = `<YOUR_SECRET>`, domains = `*.example.com`.
 
 ## 0. Recovery objectives and current reality
 
 | Asset | Where it lives today | Protection in place | Effective RPO | Effective RTO |
 |---|---|---|---|---|
 | Proxmox host OS | PVE boot device | none observed from the guest | rebuild from ISO | ~1 h |
-| ZFS pools `fastpool` (8.72 TB), `hddpool` (2.72 TB) | SSD + HDD | pool redundancy (verify vdev layout with `zpool status`) | n/a | `zpool import` minutes |
-| VM 100 boot disk (502 GB, `/dev/sda`) | fastpool | **no PBS/vzdump job detected**; QEMU guest agent inactive | undefined | reinstall 2–4 h |
-| VM 100 data disk (1.5 TB, `/dev/sdb` → `/mnt/tank`) | backing storage unverified (`qm config 100`) | none | undefined | — |
-| Minecraft world | `/srv/games/minecraft` (boot disk) | mc-backup daily, 7 kept, on `/mnt/tank/backups` (other virtual disk, same VM) | ≤ 24 h | 10 min |
-| Terraria world | `/srv/games/terraria` (boot disk) | root cron 04:00 **archives the old, missing path since 2026-09-24**; last good archive 2026-09-24 | stale, growing | 10 min from the last good archive |
-| Immich library (23 GB) | `/mnt/tank/immich` | **none** | total loss | n/a |
+| ZFS pools `fastpool` (8.72 TB), `hddpool` (~1.76 TB usable) | SSD + HDD | pool redundancy (verify vdev layout with `zpool status`) | n/a | `zpool import` minutes |
+| VM 100 boot disk (502 GB, `/dev/sda`) | fastpool | **no vzdump job yet** (planned to `hddpool/backups`, see §5.2); guest agent on | undefined | reinstall 2–4 h |
+| VM 100 data disk (1.5 TB, `/dev/sdb` → `/mnt/tank`) | hddpool (`vm-100-disk-0`) | none | undefined | — |
+| Minecraft world | `/srv/games/minecraft/data/world` (boot disk) | mc-backup daily, 7 kept, on `/mnt/tank/backups` (other virtual disk, same VM) | ≤ 24 h | 10 min |
+| Terraria world | `/srv/games/terraria` (boot disk) | root cron 04:00 to `/mnt/tank/backups/terraria`, 7 days kept | ≤ 24 h | 10 min |
+| Immich library (47 GB) | `/mnt/tank/immich` | **none** | total loss | n/a |
 | Immich database | `~/docker/immich/postgres` (boot disk) | **none** | total loss | n/a |
 | Supabase Postgres | `~/docker/supabase-service/volumes/db/data` | **none** | total loss | n/a |
 | Vaultwarden vault | `/docker/media/config/vaultwarden` | **none** | total loss | n/a |
@@ -158,8 +158,8 @@ Only when no VM backup exists. Order matters; each step depends on the previous.
 
 | Service | Restore procedure | Consistency notes |
 |---|---|---|
-| **Minecraft** | `docker compose stop minecraft` → `tar xzf /mnt/tank/backups/minecraft/world-<date>.tar.gz -C /srv/games/minecraft` (archives contain the `data/` level) → `chown -R 1000:1000` → `docker compose start minecraft` | mc-backup tars are RCON-quiesced (`save-off`), so they are safe to restore as-is. Keep `server.properties`/plugins from the live dir if only the world is corrupt. |
-| **Terraria** | Stop container → `tar xzf /mnt/tank/backups/terraria/terraria_<date>.tar.gz -C /srv/games/terraria` → start. Until the cron is fixed, the newest valid archive is `terraria_20260924.tar.gz` | Cron tar runs while the server is live; Terraria writes `.wld` atomically, but a backup taken mid-save can hold the `.wld.bak`. Prefer the second-newest archive if the newest fails to load. |
+| **Minecraft** | `docker compose stop minecraft` → move the broken `data/world` aside → `tar xzf /mnt/tank/backups/minecraft/world-<date>.tar.gz -C /srv/games/minecraft/data ./world` → `chown -R 1000:1000 /srv/games/minecraft/data/world` → `docker compose start minecraft` → check the log loads `"world"` and doesn't generate a new one. Archives made before 2026-09-26 have a different layout (the real world is at `./world` and a wrong new one at `./data/world`); use `original-world.tar.gz` from `minecraft-restore-2026-09-26/` for that era | mc-backup tars are RCON-quiesced (`save-off`), so they are safe to restore as-is. Keep `server.properties`/plugins from the live dir if only the world is corrupt. |
+| **Terraria** | Stop container → `tar xzf /mnt/tank/backups/terraria/terraria_<date>.tar.gz -C /srv/games/terraria` → start | Cron tar runs while the server is live; Terraria writes `.wld` atomically, but a backup taken mid-save can hold the `.wld.bak`. Prefer the second-newest archive if the newest fails to load. |
 | **Supabase Postgres** | Logical: `docker exec supabase-db pg_dumpall -U postgres > supabase.sql` (backup) / `cat supabase.sql \| docker exec -i supabase-db psql -U postgres` (restore into a fresh `db` with the same `POSTGRES_PASSWORD` and `JWT_SECRET`). Physical: stop the stack, replace `volumes/db/data`, start `db` alone, then the rest. | Roles, JWT secret and the `supabase_admin` password must match `.env`; otherwise auth/rest fail with 401/500. Storage objects live in `volumes/storage` and must be restored together with the DB (`storage.objects` rows reference them). |
 | **Immich** | Backup: `docker exec immich_postgres pg_dumpall -U postgres \| gzip > immich-db.sql.gz` plus a copy of `/mnt/tank/immich` (library, `upload/`, `thumbs/`, `encoded-video/`). Restore: fresh `immich` stack with the same `.env`, start **only** `database`, `gunzip -c immich-db.sql.gz \| docker exec -i immich_postgres psql -U postgres`, restore the library directory, then start the rest | DB and library must come from the same point in time. Thumbnails and encoded video can be regenerated from the admin Jobs page; originals under `library/`/`upload/` cannot. |
 | **Vaultwarden** | Stop container → restore `/docker/media/config/vaultwarden` (`db.sqlite3`, `attachments/`, `rsa_key*`) → start | Restore the RSA key pair too, or every client must re-login. Use `sqlite3 db.sqlite3 ".backup out.db"` for live backups. |
@@ -178,7 +178,9 @@ Only when no VM backup exists. Order matters; each step depends on the previous.
 |---|---|---|---|
 | VM won't start after PVE rebuild: "no such logical volume / zvol" | Pool not imported or storage not defined | `zpool list`; `pvesm status` | §1.2 steps 3–4 |
 | VM boots but `nvidia-smi` fails | Passthrough not restored, host grabbed the GPU, or driver mismatch | host: `lspci -k -s <id>` shows `vfio-pci`?; guest: `dmesg \| grep -i nvidia` | Re-add `hostpci0`; blacklist on host; reinstall guest driver |
-| Ollama slow, `library=cpu` in logs | Guest driver < 550 | `docker logs ollama \| grep -i driver` | Upgrade driver (current known issue) |
+| Ollama slow, `library=cpu` in logs | Guest driver too old, or GPU not passed to the container | `docker logs ollama \| grep "inference compute"`; `docker exec ollama nvidia-smi -L` | Driver ≥ 550 (615 installed 2026-09-26); container needs the GPU request in compose |
+| Ollama/Jellyfin `Exited (255)` after a reboot: `could not select device driver "nvidia"` | NVIDIA Container Toolkit missing (e.g. removed by `apt purge libnvidia-*`) | `docker inspect <c> -f '{{.State.Error}}'`; `which nvidia-ctk` | `apt install nvidia-container-toolkit`, `nvidia-ctk runtime configure --runtime=docker`, `systemctl restart docker` |
+| Minecraft shows a brand-new world | Server's `/data` points at a folder with no `world/` (happened 2026-09-24) | `docker inspect minecraft` mounts; `find / -xdev -name level.dat` | Stop, copy the real `world/` into the mounted folder, start; see [gaming.md](../services/gaming.md#the-sep-2426-world-mix-up-what-happened-and-how-to-avoid-it) |
 | Container `Exited (137)`, `OOMKilled=false` | SIGKILL after `docker stop` grace period | `docker inspect -f '{{.State}}'`; `journalctl -k \| grep -i oom` | Raise `stop_grace_period`; investigate why the process ignores SIGTERM (Stirling: JVM + unoserver) |
 | Container `Exited (137)`, `OOMKilled=true` | Hit cgroup memory cap | `docker stats`, `dmesg` | Raise `memory` or lower JVM `-Xmx` |
 | Whole guest sluggish, `si/so` in `vmstat 1` non-zero | Swap thrash: Ollama CPU inference + Minecraft heap | `free -h`, `cat /proc/pressure/memory` | Cap Ollama, fix GPU, or reduce `MAX_MEMORY` |
@@ -187,8 +189,8 @@ Only when no VM backup exists. Order matters; each step depends on the previous.
 | Torrents stall, Gluetun `unhealthy` | Mullvad endpoint/key issue | `docker logs gluetun --tail 50` | Rotate WireGuard key in Mullvad account, update `.env` |
 | Public site 502 | Upstream container down, port moved, or `host.docker.internal` missing | `docker ps`; `docker exec nginx-proxy wget -qO- http://host.docker.internal:<port>` | Start container; align `proxy_pass` port; keep `extra_hosts: host-gateway` in the proxy compose |
 | Public site serves an expired cert although `certbot certificates` shows a new one | nginx-proxy was never reloaded | `docker exec nginx-proxy nginx -T \| grep ssl_certificate` | `docker exec nginx-proxy nginx -s reload`; add the deploy hook (§2.2 step 5) |
-| Guest stalls, RCU stall / `virtio_net` TX timeout in `journalctl -k` | CPU starvation: swap storm or host overcommit | `free -h`, `vmstat 1`, host `pvesh get /nodes/<node>/status` | Add RAM to VM 100, cap Immich ML, set `cpu: host`, check host load |
-| Terraria backup cron produces no new archive | Cron `-C` path no longer exists | `ls /mnt/tank/backups/terraria`; `grep terraria /var/spool/cron/crontabs/root` | Point `-C` at `/srv/games/terraria` |
+| Guest stalls, RCU stall / `virtio_net` TX timeout in `journalctl -k` | CPU starvation: swap storm or host overcommit | `free -h`, `vmstat 1`, host `pvesh get /nodes/<node>/status` | Check memory caps (Immich, Ollama), check host load; `cpu: host` is already set |
+| Terraria backup cron produces no new archive | Cron `-C` path no longer exists (happened 2026-09-24) | `ls /mnt/tank/backups/terraria`; `grep terraria /var/spool/cron/crontabs/root` | Point `-C` at `/srv/games/terraria` |
 | Public site cert expired | `certbot.timer` failed (Cloudflare token revoked) | `systemctl status certbot.timer`; `certbot renew --dry-run` | Renew token in `.env` + credentials file |
 | Tailscale offline, watchdog log growing | `tailscaled` hung or key expired | `tail /var/log/tailscale-watchdog.log`; `tailscale status` | Watchdog restarts automatically; if key expired, `tailscale up` interactively or disable key expiry in the admin console |
 | Minecraft/Terraria unreachable from internet, LAN fine | Playit agent(s) down or fighting | `systemctl status playit`; `docker logs playit` | Run exactly one agent (both were running on 2026-09-25); check dashboard tunnel status |
@@ -224,15 +226,15 @@ flowchart LR
 
 ### 5.2 Implementation checklist
 
-- [ ] **Hypervisor:** create a vzdump or PBS backup job for VM 100 to `hddpool/backups` (mode `snapshot`, compression `zstd`, schedule nightly, retention 7 daily / 4 weekly / 6 monthly). Enable the guest agent (`qm set 100 --agent 1`, `systemctl enable --now qemu-guest-agent` in the guest) so the filesystem is frozen during the snapshot.
+- [ ] **Hypervisor:** create a vzdump backup job for VM 100 to `hddpool/backups` (mode `snapshot`, compression `zstd`, 03:00, keep-daily 3 / keep-weekly 2). First free the data disk's reservation and cap the dataset at 600 GB; exact commands in [host-and-vm.md](../architecture/host-and-vm.md#hddpool-space-and-the-planned-vm-backup-2026-09-26). Guest agent: ✅ on (2026-09-26).
 - [ ] **Hypervisor:** enable `zfs-auto-snapshot` or sanoid on `fastpool/vm-100-disk-0` and, after the storage realignment, on `fastpool/appdata`.
 - [ ] **Guest:** export `hddpool/backups` via NFS from PVE (or attach a second disk) and mount it at `/mnt/backups`; re-point `mc-backup` `/backups` and the Terraria cron there.
-- [ ] **Guest (now):** fix the Terraria cron: `-C /srv/games/terraria`.
+- [x] **Guest:** fix the Terraria cron: `-C /srv/games/terraria` (done).
 - [ ] **Guest:** add nightly `pg_dumpall` for Supabase **and Immich**, an rsync of `/mnt/tank/immich`, and a config tar (list in the diagram) to the same mount; prune with `find -mtime +14 -delete`.
 - [ ] **Guest:** add json-file log rotation to `daemon.json`; delete the 7.6 GB of Stirling heap dumps; run `docker system prune` monthly.
 - [ ] **Offsite:** PBS remote sync to a second PBS, or `restic`/`rclone` from `hddpool/backups` to object storage with a `<YOUR_SECRET>` repository key stored in the password manager (not on the VM).
 - [ ] **Secrets escrow:** copy every `.env`, `cloudflare.ini`, the Cloudflare Tunnel token, Playit secret, Mullvad key and the Vaultwarden RSA keys to the offsite store; without them a restored DB is unusable.
-- [ ] **Host record:** save `qm config 100` output (including which storage backs the 1.5 TB `scsi1`) alongside the `/etc/pve` backup.
+- [ ] **Host record:** save `qm config 100` output alongside the `/etc/pve` backup. (The 1.5 TB data disk is `hddpool/vm-100-disk-0`, confirmed 2026-09-26.)
 
 ### 5.3 Validation procedures (run quarterly, record results)
 
@@ -248,11 +250,10 @@ flowchart LR
 | Tailscale watchdog | `systemctl stop tailscaled`; wait ≤ 5 min | `tailscale status` back online, log line appended |
 | Restore-time drill | Time a full §2.2 rebuild in a scratch VM | ≤ 4 h, and the drill notes update this runbook |
 
-### 5.4 Known gaps as of 2026-09-25
+### 5.4 Known gaps as of 2026-09-26
 
-1. No hypervisor-level backup job and guest agent inactive, so VM 100 has no restorable image.
+1. No hypervisor-level backup job yet, so VM 100 has no restorable image (guest agent is now on; the job is planned).
 2. All guest backups sit inside VM 100 (`/mnt/tank/backups`), so losing the VM loses the backups too.
-3. **Immich (23 GB library + DB)**, Supabase Postgres, Vaultwarden and n8n have no backups at all.
-4. The Terraria backup has archived a missing path since the 2026-09-24 move.
-5. No offsite copy of anything, including the secrets and the tunnel token needed to make a restore useful.
-6. `hddpool/backups` and `hddpool/media` are provisioned but unused by the guest. The storage backing the 1.5 TB data disk is undocumented.
+3. **Immich (47 GB library + DB)**, Supabase Postgres, Vaultwarden and n8n have no backups at all.
+4. No offsite copy of anything, including the secrets and the tunnel token needed to make a restore useful.
+5. `hddpool/backups` and `hddpool/media` are empty. The 1.5 TB data disk reserves its full size on hddpool until `refreservation=none` is set.
