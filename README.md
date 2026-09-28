@@ -1,12 +1,13 @@
 # Homelab
 
-**Last updated:** 2026-09-26
+**Last updated:** 2026-09-28
 
 **What changed:**
-- GPU works for Ollama: new NVIDIA driver (615), VM CPU type set to `host`, guest agent on. `qwen3:8b` answers at ~63 tokens/s instead of ~5 min per request.
-- Minecraft: the real world is back. Since Sep 24 the server had been running a freshly generated world because the world folder wasn't moved with the rest of the server. Backups now point at the right folder.
-- n8n Gmail workflow reconnected; Ollama keeps the model loaded (`OLLAMA_KEEP_ALIVE=-1`).
-- Proxmox backup job for the VM planned on hddpool (steps in the roadmap).
+- First working Proxmox backup of VM 100 (2026-09-27): 46 GB file on `hddpool-backups`, archive checked with `zstd -t`. The VM ran normally the whole time. A nightly 05:00 job uses the same settings.
+- It covers the **boot disk only**. The 1.5 TB data disk (`/mnt/tank`, including the Immich photos) is still not backed up.
+- VM RAM lowered to 11 GB. That is what made the backup stable: the 09-27 overnight attempt froze the VM and was interrupted.
+- The VM's disk trim now runs daily at 04:30 (was weekly), right before the backup, so backups don't read ~30 GB of deleted blocks.
+- The 13:15 NVIDIA "Out of memory" kernel lines were Ollama loading its model, not a real problem. The audit script no longer counts them as OOM kills.
 
 ## Where to find what
 

@@ -8,7 +8,7 @@
 flowchart TB
     HW["Physical server<br/>13 × 1 TB SSD · 3 × 1 TB HDD · RTX 2060 SUPER"]
     PVE["Proxmox VE 9.2<br/>ZFS: fastpool (SSD) · hddpool (HDD)"]
-    VM["VM 100 'debian-docker'<br/>Debian 12 · 4 vCPU · 12 GB RAM · GPU passed through"]
+    VM["VM 100 'debian-docker'<br/>Debian 12 · 4 vCPU · 11 GB RAM · GPU passed through"]
     DK["Docker: 40 containers in 9 projects"]
     HW --> PVE --> VM --> DK
 ```
@@ -23,9 +23,9 @@ One VM runs all the Docker containers, rather than one VM or LXC per service. Th
 | ZFS `fastpool` | SSD pool, 8.72 TB. Datasets: `appdata`, `photos`, `vms`, and VM 100's boot disk |
 | ZFS `hddpool` | HDD pool, **~1.76 TB usable** (checked 2026-09-26; the earlier 2.72 TB was not the usable size). Holds `vm-100-disk-0`, the VM's 1.5 TB data disk. Datasets `backups` and `media` exist but are empty |
 | GPU | NVIDIA RTX 2060 SUPER 8 GB, PCIe passthrough to VM 100 (`vfio-pci` on the host) |
-| Backup jobs | **none yet** for VM 100 (planned: see below) |
+| Backup jobs | VM 100 nightly at 05:00 to `hddpool-backups`, boot disk only (see [below](#vm-100-backup-working-since-2026-09-27)) |
 
-Host RAM (checked 2026-09-26): 16 GB total. VM 12 GB, ZFS read cache (ARC) capped at 1.5 GB (Proxmox default, 10 %) and using ~0.2 GB, the rest is Proxmox. The ARC is not competing with the VM, but there is no spare RAM to give the VM either.
+Host RAM (checked 2026-09-26): 16 GB total. VM 11 GB since 2026-09-27 (was 12), ZFS read cache (ARC) capped at 1.5 GB (Proxmox default, 10 %) and using ~0.2 GB, the rest is Proxmox. The ARC is not competing with the VM, but there is no spare RAM to give the VM either. With the GPU passed through, all of the VM's RAM is locked on the host at all times; it can't be lent back.
 
 To do on the host (the audit script can't see it): record `qm config 100` and `zpool status`.
 
@@ -33,7 +33,7 @@ To do on the host (the audit script can't see it): record `qm config 100` and `z
 
 `zfs list -r hddpool` on the host showed `vm-100-disk-0` (1.46 TB) with a **reservation of the full 1.47 TB** (`refreservation`), although only ~56 GB is written. That left the pool only 291 GB free. The plan:
 
-1. `zfs set refreservation=none hddpool/vm-100-disk-0` frees ~1.4 TB at once, with no downtime. It's safe because deletions inside the VM reach the pool (`discard` works on `sdb`, and the weekly `fstrim.timer` is on).
+1. `zfs set refreservation=none hddpool/vm-100-disk-0` frees ~1.4 TB at once, with no downtime. It's safe because deletions inside the VM reach the pool (`discard` works on `sdb`, and `fstrim.timer` runs daily since 2026-09-27).
 2. `zfs set quota=600G hddpool/backups` stops backups from ever filling the pool.
 3. `pvesm add dir hdd-backups --path /hddpool/backups --content backup --is_mountpoint yes`. The last flag stops Proxmox from writing onto its own boot disk if the dataset isn't mounted.
 4. Datacenter → Backup: VM 100, 03:00, snapshot mode, ZSTD, keep-daily 3 + keep-weekly 2 (~100 GB each, ~500 GB total). Then do one test restore to a new VM ID, with the GPU and network removed first.
@@ -42,6 +42,39 @@ The pool is then overcommitted (1.5 TB disk + 600 GB quota > 1.76 TB). That's fi
 
 Why hddpool and not fastpool: VM 100's boot disk (all databases, Vaultwarden, configs) lives on fastpool. A backup on the same pool dies with it.
 
+### VM 100 backup: working since 2026-09-27
+
+What was actually set up differs a little from the plan above:
+
+| | Value |
+|---|---|
+| Storage | `hddpool-backups` (dir at `/hddpool/backups`, 600 GiB); files in `/hddpool/backups/dump/` |
+| Job | nightly 05:00, VM 100, snapshot mode, zstd, `--bwlimit 51200` (50 MiB/s), `--performance max-workers=1`, keep-last 7 |
+| Disks included | boot disk (`fastpool/vm-100-disk-1`, 502 GB) only. The 1.5 TB data disk on hddpool is **not** in the backup |
+| Fleecing | temporary image on `fastpool` during the run |
+| First good run | 2026-09-27 13:30 → 16:21 (2 h 51 min), 46 GB archive, task `OK`, `zstd -t` passed |
+| Before it | trim runs at 04:30 (VM `fstrim.timer`) so the backup skips deleted blocks |
+
+Create the job on the host with:
+
+```bash
+pvesh create /cluster/backup --schedule 05:00 --vmid 100 --storage hddpool-backups --mode snapshot --compress zstd --bwlimit 51200 --performance max-workers=1 --prune-backups keep-last=7 --enabled 1
+```
+
+**What made it stable.** The first attempt (2026-09-27 ~03:40) froze the VM: CPU steal up to 78 %, load ~84, and the host had to be powered off. The retry at 04:01 got further but was interrupted at 2 %. What fixed it:
+1. VM RAM 12 → 11 GB, so the host has room for ZFS and vzdump.
+2. Host tuning of the ZFS write buffer and swappiness (2026-09-27, made persistent; check `/etc/modprobe.d/` and `/etc/sysctl.d/` on the host for the values).
+3. One compression thread and the 50 MiB/s limit.
+
+During the good run the VM never paused, CPU steal peaked at 0.4 % and at least 2 GB of RAM stayed available.
+
+**Space and time.** The archive holds only the blocks in use: ~63 GB of data on the zvol after a trim, ~100 GB uncompressed at the first run (a week of untrimmed deletions), 46 GB compressed. Seven copies fit in the 600 GiB easily.
+
+**Pitfalls seen on 2026-09-27:**
+- Pasting `systemd-run ... vzdump ...` and `journalctl -fu ...` together turned the second command into extra vzdump arguments; the unit failed instantly. Run them as two lines.
+- `/var/log/vzdump/qemu-100.log` shows no progress while a run is going, and can sit at "removing (old) fleecing image" the whole time. Progress is in `journalctl -u <unit>` or the task log; the file is filled in at the end.
+- After an interrupted run, check `zfs list -t all | grep fleece` for a leftover fleecing image.
+
 ## VM 100 `debian-docker`
 
 | Item | Value (2026-09-25) |
@@ -49,7 +82,7 @@ Why hddpool and not fastpool: VM 100's boot disk (all databases, Vaultwarden, co
 | OS | Debian 12 (bookworm), kernel 6.1.0-52 |
 | Machine | QEMU q35, KVM |
 | CPU | 4 vCPU, type `host` (shows as i3-12100, AVX2 available). Changed 2026-09-26 |
-| RAM | 12 GB, ballooning off, plus an 8 GB swapfile. Swap 5.1 GB used on 2026-09-26, but nothing actively swapping (it was 99 % on 09-25) |
+| RAM | 11 GB (11264 MB) since 2026-09-27, ballooning off, plus an 8 GB swapfile. 4–5 GB of cold pages in swap on 2026-09-28, but nothing actively swapping (it was 99 % on 09-25) |
 | Disks | `sda` 502 GB (boot), `sdb` 1.5 TB (data at `/mnt/tank`). Details below |
 | GPU | RTX 2060 SUPER, NVIDIA driver 615 (open kernel module) + container toolkit 1.20.1. Used by Ollama and Jellyfin |
 | QEMU guest agent | **On** in Proxmox and in the VM (2026-09-26) |

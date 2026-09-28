@@ -21,23 +21,26 @@
 - **tailnet**: your devices with Tailscale on; the `*.example.com` names point at the server's Tailscale IP.
 - **LAN**: devices on your home network, using the server's IP and port.
 
-## Memory budget (12 GB VM)
+## Memory budget (11 GB VM)
 
-On 2026-09-25 the VM ran out of memory (7.9 of 8 GB swap). Immich is now capped and Ollama's model moved to the GPU. On 2026-09-26: ~3.4 GB RAM available, 5.1 GB of old pages in swap, no active swapping.
+On 2026-09-25 the VM ran out of memory (7.9 of 8 GB swap). Immich is now capped and Ollama's model moved to the GPU. On 2026-09-27 the VM went from 12 to 11 GB so the host keeps enough RAM during the nightly backup (with the GPU passed through, the host can't reclaim any of the VM's RAM). On 2026-09-27/28: 1.6–3.6 GB available, 4–5 GB of cold pages in swap, no active swapping, no OOM kills.
 
-| Consumer | Limit | Uses (2026-09-25/26) | Page |
+**Why 11 GB is the right size for now:** more would starve the host during backups (the 12 GB setup froze the VM on 2026-09-27); less would leave no room for Immich imports (+2 GB) and indexing (+1 GB) on top of the normal load. Worry only if `vmstat 1` shows non-zero `si`/`so` for minutes, or `/proc/pressure/memory` stays above a few percent.
+
+| Consumer | Limit | Uses (2026-09-27/28) | Page |
 |---|---|---|---|
 | immich_server | 4 GiB | ~0.6 GiB idle, 2+ GiB while importing | [immich](immich.md) |
 | immich_machine_learning | 2 GiB | ~50 MiB idle, ~1 GiB (+200 % CPU) while indexing | [immich](immich.md) |
-| minecraft | 5 GiB | ~920 MiB idle | [gaming](gaming.md) |
+| minecraft | 5 GiB | ~1.1 GiB | [gaming](gaming.md) |
 | supabase (11 containers) | none | ~0.9 GiB total | [supabase](supabase.md) |
-| stirling-pdf | 1 GiB | ~370 MiB | [ai-tools](ai-tools.md) |
-| n8n | 1 GiB | ~240 MiB | [ai-tools](ai-tools.md) |
-| ollama | **none** | ~2 GiB RAM with the model loaded; the model itself (5.4 GB) is in GPU memory since 2026-09-26 | [ai-tools](ai-tools.md) |
+| stirling-pdf | 1 GiB | ~490 MiB | [ai-tools](ai-tools.md) |
+| terraria | 2 GiB | ~0.4–1 GiB | [gaming](gaming.md) |
+| n8n | 1 GiB | ~290 MiB | [ai-tools](ai-tools.md) |
+| ollama | **none** | ~1–1.5 GiB RAM (`llama-server`) with the model loaded; the model itself (5.4 GB) is in GPU memory | [ai-tools](ai-tools.md) |
 | everything else in Docker | mostly none | ~1.2 GiB | — |
-| host programs (Chrome/Xvfb, Claude tooling, dockerd, tailscaled) | none | ~1.5–2 GiB | [host-and-vm](../architecture/host-and-vm.md#host-native-programs) |
+| host programs (Chrome/Xvfb, Claude tooling, dockerd, tailscaled) | none | ~1.5–2.5 GiB (Claude and Chrome sessions add up when several are open) | [host-and-vm](../architecture/host-and-vm.md#host-native-programs) |
 
-The caps (Minecraft 5 G, Immich 4 G + 2 G, Terraria 2 G, n8n 1 G, Stirling 1 G, mc-backup 512 M) add up to 15.5 GiB, more than the VM has. That works only because they rarely peak together. The host has only 16 GB, so the real long-term fix is a RAM upgrade ([roadmap](../roadmap/ROADMAP.md)).
+The caps (Minecraft 5 G, Immich 4 G + 2 G, Terraria 2 G, n8n 1 G, Stirling 1 G, mc-backup 512 M) add up to 15.5 GiB, more than the VM has. That works only because they rarely peak together. Cheapest way to get headroom: lower Minecraft's cap to ~3 GiB. The host has only 16 GB, so the real long-term fix is a RAM upgrade ([roadmap](../roadmap/ROADMAP.md)).
 
 ## Where data lives
 

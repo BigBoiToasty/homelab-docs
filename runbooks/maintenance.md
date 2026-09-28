@@ -13,6 +13,25 @@ systemctl --failed --no-pager                                    # should list 0
 ls -lt /mnt/tank/backups/minecraft /mnt/tank/backups/terraria | head   # newest files < 24 h old
 ```
 
+On the Proxmox host, check the nightly VM backup:
+
+```bash
+ls -lh /hddpool/backups/dump/ | tail -4                          # newest vzdump-qemu-100-*.vma.zst from today, ~40–50 GB
+grep -h 'Finished Backup\|ERROR' /hddpool/backups/dump/vzdump-qemu-100-*.log | tail -2   # "Finished Backup of VM 100", no ERROR
+```
+
+## Nightly schedule
+
+| Time | Where | Job |
+|---|---|---|
+| 04:00 | VM (root cron) | Terraria world → `/mnt/tank/backups/terraria` |
+| 04:30 | VM (`fstrim.timer`, override in `/etc/systemd/system/fstrim.timer.d/override.conf`) | Trim deleted blocks on `/` and `/mnt/tank`, so the backup skips them |
+| 05:00 | Proxmox host (Datacenter → Backup) | vzdump of VM 100's boot disk to `hddpool-backups`, keep 7; ~1–3 h |
+| ~06:00–07:00 | VM (`apt-daily-upgrade.timer`, randomized) | Package list refresh / upgrades |
+| every 24 h from container start | VM (`mc-backup`) | Minecraft world → `/mnt/tank/backups/minecraft` |
+
+Don't reboot the host or the VM between 05:00 and ~08:00 without checking whether the backup is still running (`pgrep -a vzdump` on the host). A running backup can be followed with `journalctl -fu <unit>` or in the web UI under the node's Tasks.
+
 ## After a reboot
 
 Most things come back on their own (Docker containers, cloudflared, Tailscale, cron). Check these:
@@ -101,6 +120,6 @@ Then ask Claude (or read it yourself) to compare `~/audit.md` with the docs and 
 - [ ] Quick health check (above)
 - [ ] Update containers and OS
 - [ ] Look at swap and disk trends in Grafana
-- [ ] Confirm the newest backup archives exist and open (`gzip -t file.tar.gz`)
+- [ ] Confirm the newest backup archives exist and open (`gzip -t file.tar.gz`; for the VM backup on the host, `zstd -t /hddpool/backups/dump/<newest>.vma.zst`)
 - [ ] Refresh the docs with the audit script
 - [ ] Glance at the [roadmap](../roadmap/ROADMAP.md) and tick off what's done

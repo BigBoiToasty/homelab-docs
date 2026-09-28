@@ -1,6 +1,6 @@
 # Roadmap
 
-> Planned work, tech debt and wishlist for the homelab. Last updated 2026-09-26.
+> Planned work, tech debt and wishlist for the homelab. Last updated 2026-09-28.
 > Each task says **why** it matters and links to where the details live. Tick the box when done and move the line to [Done](#-done).
 
 **Legend:** 🔴 in progress · 🟠 urgent (risk of losing data) · 🟡 soon · ⚪ someday · ✅ done
@@ -9,15 +9,12 @@
 
 ## 🔴 In progress
 
-- [ ] **Proxmox backup job for VM 100 on hddpool.** Nothing can restore the whole VM today. Steps (all on the Proxmox host):
-  1. `zfs set refreservation=none hddpool/vm-100-disk-0` frees ~1.4 TB that the data disk reserves but doesn't use.
-  2. `zfs set quota=600G hddpool/backups`
-  3. `pvesm add dir hdd-backups --path /hddpool/backups --content backup --is_mountpoint yes`
-  4. Datacenter → Backup → Add: VM 100, 03:00, Snapshot, ZSTD, keep-daily 3 + keep-weekly 2.
-  5. Run it once, then test-restore to a new VM ID (remove its GPU and network first).
-
-  Why these choices: [host-and-vm.md → hddpool space](../architecture/host-and-vm.md#hddpool-space-and-the-planned-vm-backup-2026-09-26). Delete the Stirling-PDF heap dumps before the first run so 7.6 GB of junk isn't backed up.
-- [ ] **Keep an eye on VM memory.** Immich is capped and Ollama's model is on the GPU now, so the swap storms of 09-25 are gone. But the host only has 16 GB, so the VM can't grow. Real fix: a RAM upgrade to 32 GB. Don't add more swap: it only hides the problem. → [services/README.md#memory-budget-12-gb-vm](../services/README.md#memory-budget-12-gb-vm)
+- [ ] **Finish the VM 100 backup setup.** The first manual backup worked on 2026-09-27 ([details](../architecture/host-and-vm.md#vm-100-backup-working-since-2026-09-27)). Left to do (on the Proxmox host):
+  1. Confirm the nightly 05:00 job exists (`pvesh get /cluster/backup`) and that the first scheduled run finished with `OK`.
+  2. Once, do a real test restore (see [disaster-recovery §5.3](../runbooks/disaster-recovery.md#53-validation-procedures-run-quarterly-record-results)). `zstd -t` only proves the file decompresses, not that the VM boots from it. It needs VM 100 stopped, because the host can't run two VMs this size.
+  3. Check whether the data disk still reserves its full 1.5 TB: `zfs get refreservation hddpool/vm-100-disk-0`. If it does, `zfs set refreservation=none hddpool/vm-100-disk-0`.
+- [ ] **Back up the data disk's irreplaceable files (Immich photos first).** The VM backup skips the 1.5 TB `/mnt/tank` disk. Backing it up to hddpool wouldn't help anyway, since it already lives there. The photos need a copy on fastpool or off-site (see the Immich task below).
+- [ ] **Keep an eye on VM memory.** The VM runs on 11 GB since 2026-09-27; 12 GB left the host too little RAM during backups. Ollama's model is on the GPU, so ~2–3.5 GB stays available and cold pages sit in swap without active swapping. The host only has 16 GB, so the VM can't grow. Real fix: a RAM upgrade to 32 GB. Don't add more swap: it only hides the problem. → [services/README.md#memory-budget-11-gb-vm](../services/README.md#memory-budget-11-gb-vm)
 - [ ] **Tune Immich background uploads/jobs.** Lower job concurrency in Admin → Jobs and run face detection / smart search overnight so they don't fight the game servers. → [services/immich.md](../services/immich.md#memory-and-cpu)
 
 ## 🟠 Short-term / immediate
@@ -61,6 +58,9 @@ Things that can lose data or are one-line fixes.
 
 ## ✅ Done
 
+- ✅ First Proxmox backup of VM 100: storage `hddpool-backups` (600 GiB), 46 GB archive in 2 h 51 min, VM never paused. Nightly job at 05:00, keep-last 7 (2026-09-27/28).
+- ✅ Daily `fstrim` at 04:30 instead of weekly, so the backup doesn't read deleted blocks (2026-09-27).
+- ✅ VM RAM 12 → 11 GB so the host keeps enough RAM during backups (2026-09-27).
 - ✅ Ollama runs on the GPU: NVIDIA driver 615, container toolkit reinstalled, `qwen3:8b` at ~63 tokens/s, model kept loaded (2026-09-26).
 - ✅ VM CPU type `host` and QEMU guest agent on, in Proxmox and in the VM (2026-09-26).
 - ✅ Minecraft: original world restored after the 2026-09-24 move had left it behind; `mc-backup` now backs up the live folder (2026-09-26). → [services/gaming.md](../services/gaming.md#the-sep-2426-world-mix-up-what-happened-and-how-to-avoid-it)
@@ -116,7 +116,7 @@ Things that were planned one way and are actually another. Re-check with the aud
 | Ollama limits | RAM/VRAM caps | no cap, CPU | 09-26: on the GPU, keep-alive -1, no RAM cap | Mid-term |
 | Chrome desktop | container, 1.5 GiB | native, VNC open | native, VNC tailnet-only | Backlog |
 | Media library | `hddpool/media` | empty dir on root disk | empty dir on data disk | Mid-term |
-| Backups | `hddpool/backups` + PBS | same disk as data | inside the VM; no VM backup (job planned 09-26) | In progress |
+| Backups | `hddpool/backups` + PBS | same disk as data | inside the VM; 09-27: vzdump of the boot disk to `hddpool-backups`, nightly 05:00; data disk not included | In progress |
 | Minecraft data path | one folder | `/srv/games/minecraft` | 09-24: server moved to `data/`, world left behind; 09-26: fixed | ✅ |
 | Terraria backup | nightly | working | 09-26: working again | ✅ |
 | Playit | one agent | two | two | Short-term |
@@ -128,5 +128,5 @@ Things that were planned one way and are actually another. Re-check with the aud
 | Root disk | — | 102 GB, 88 % | 502 GB, 15 % | ✅ |
 | Log rotation | bounded | none | none | Mid-term |
 | Monitoring | full | 1 scrape job | unchanged | Mid-term |
-| Guest RAM | 12 GB | swap 5.7 GiB | swap 7.9 GiB (full); 09-26: 5.1 GiB, not thrashing | Watch |
+| Guest RAM | 12 GB | swap 5.7 GiB | swap 7.9 GiB (full); 09-26: 5.1 GiB, not thrashing; 09-27: lowered to 11 GB, 4–5 GiB cold swap, no active swapping | Watch |
 | Guest agent | on | inactive | 09-26: on, both sides | ✅ |

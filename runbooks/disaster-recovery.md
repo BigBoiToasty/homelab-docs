@@ -9,20 +9,20 @@
 |---|---|---|---|---|
 | Proxmox host OS | PVE boot device | none observed from the guest | rebuild from ISO | ~1 h |
 | ZFS pools `fastpool` (8.72 TB), `hddpool` (~1.76 TB usable) | SSD + HDD | pool redundancy (verify vdev layout with `zpool status`) | n/a | `zpool import` minutes |
-| VM 100 boot disk (502 GB, `/dev/sda`) | fastpool | **no vzdump job yet** (planned to `hddpool/backups`, see §5.2); guest agent on | undefined | reinstall 2–4 h |
-| VM 100 data disk (1.5 TB, `/dev/sdb` → `/mnt/tank`) | hddpool (`vm-100-disk-0`) | none | undefined | — |
+| VM 100 boot disk (502 GB, `/dev/sda`) | fastpool (`vm-100-disk-1`) | vzdump nightly 05:00 to `hddpool-backups`, keep-last 7 (first good run 2026-09-27; not yet test-restored) | ≤ 24 h | restore ~1–3 h (§2.1) |
+| VM 100 data disk (1.5 TB, `/dev/sdb` → `/mnt/tank`) | hddpool (`vm-100-disk-0`) | **none** (not in the vzdump job) | total loss | — |
 | Minecraft world | `/srv/games/minecraft/data/world` (boot disk) | mc-backup daily, 7 kept, on `/mnt/tank/backups` (other virtual disk, same VM) | ≤ 24 h | 10 min |
 | Terraria world | `/srv/games/terraria` (boot disk) | root cron 04:00 to `/mnt/tank/backups/terraria`, 7 days kept | ≤ 24 h | 10 min |
-| Immich library (47 GB) | `/mnt/tank/immich` | **none** | total loss | n/a |
-| Immich database | `~/docker/immich/postgres` (boot disk) | **none** | total loss | n/a |
-| Supabase Postgres | `~/docker/supabase-service/volumes/db/data` | **none** | total loss | n/a |
-| Vaultwarden vault | `/docker/media/config/vaultwarden` | **none** | total loss | n/a |
-| n8n workflows/credentials | `/docker/appdata/n8n` | **none** | total loss | n/a |
+| Immich library (47 GB) | `/mnt/tank/immich` (data disk) | **none** (data disk is not in the VM backup) | total loss | n/a |
+| Immich database | `~/docker/immich/postgres` (boot disk) | VM backup only (no DB dump) | ≤ 24 h | whole-VM restore |
+| Supabase Postgres | `~/docker/supabase-service/volumes/db/data` | VM backup only (no DB dump) | ≤ 24 h | whole-VM restore |
+| Vaultwarden vault | `/docker/media/config/vaultwarden` | VM backup only | ≤ 24 h | whole-VM restore |
+| n8n workflows/credentials | `/docker/appdata/n8n` | VM backup only | ≤ 24 h | whole-VM restore |
 | *arr / Jellyfin / Kavita configs | `/docker/media/config/*` | none | rebuild | 1–2 h |
 | Ollama models, Docker images | boot disk | none needed (re-downloadable) | — | bandwidth-bound (~45 GB) |
 | TLS certs, proxy vhosts, tunnel token, Tailscale identity | `/etc/letsencrypt`, `~/docker/reverse-proxy/conf.d`, `/etc/cloudflared`, `/var/lib/tailscale` | none | re-issue / re-auth | 30–60 min |
 
-**Bottom line:** losing VM 100 today loses the Immich photo library and database, the Supabase database, the password vault, the automation credentials and every game backup at once. All in-guest backups live inside the same VM. Section 5 fixes that; sections 1–4 tell you how to get back when it happens.
+**Bottom line:** since 2026-09-27 a lost or broken boot disk can be restored from last night's VM backup (databases, vault, configs, game worlds). Still unprotected: the **Immich photo library** and everything else on the data disk, and anything if hddpool itself dies, because the VM backups live there too. Section 5 lists what's left; sections 1–4 tell you how to get back when it happens.
 
 ## 1. Bare-metal Proxmox rebuild
 
@@ -32,7 +32,7 @@ Use when the hypervisor boot device or the whole node is lost but the ZFS disks 
 
 - [ ] Proxmox ISO matching `pve-manager 9.2.x` (or newer 9.x) on USB.
 - [ ] `/etc/pve` backup (`tar czf pve-config.tgz /etc/pve /etc/network/interfaces /etc/hosts /etc/modprobe.d /etc/default/grub` taken on the host) — contains `qemu-server/100.conf`, `storage.cfg`, user/ACL config.
-- [ ] Output of `zpool status`, `zpool list -v`, `zfs list -o name,mountpoint,used`, `zfs get all fastpool/vm-100-disk-0 | grep volsize` saved as text.
+- [ ] Output of `zpool status`, `zpool list -v`, `zfs list -o name,mountpoint,used`, `zfs get all fastpool/vm-100-disk-1 | grep volsize` saved as text.
 - [ ] IOMMU/passthrough notes: PCI ID of the RTX 2060 SUPER (`lspci -nn | grep -i nvidia` on the host), the `vfio-pci` ids line, and the VM's `hostpci0:` entry.
 - [ ] Tailscale auth key or admin console access; Cloudflare API token (`<YOUR_SECRET>`); Playit agent secret; Mullvad WireGuard key.
 
@@ -48,7 +48,7 @@ Use when the hypervisor boot device or the whole node is lost but the ZFS disks 
    zpool import -f hddpool
    zpool status -v                    # all vdevs ONLINE, no errors
    zfs list -r fastpool hddpool       # expect fastpool/appdata, fastpool/photos, fastpool/vms,
-                                      # fastpool/vm-100-disk-0 (zvol), hddpool/backups, hddpool/media
+                                      # fastpool/vm-100-disk-1 (boot zvol; disk-0 is the 3 MB EFI disk), hddpool/backups, hddpool/media
    zpool set cachefile=/etc/zfs/zpool.cache fastpool
    zpool set cachefile=/etc/zfs/zpool.cache hddpool
    update-initramfs -u -k all         # so pools import at boot
@@ -65,7 +65,7 @@ Use when the hypervisor boot device or the whole node is lost but the ZFS disks 
    | VMID / name | 100 / `debian` (guest hostname `debian-docker`) |
    | Machine | `q35` (guest reports `pc-q35-11.0`), OVMF/UEFI recommended for GPU passthrough |
    | CPU | 4 cores (guest sees `QEMU Virtual CPU version 2.5+`; use `cpu: host` for AVX in Ollama/Immich ML) |
-   | Memory | 12288 MB today, ballooning off (`virtio_balloon` not loaded in the guest). **Raise to 16–20 GB** when rebuilding (swap was full on 2026-09-25) |
+   | Memory | 11264 MB since 2026-09-27 (12 GB left the host too little RAM during backups), ballooning off (`virtio_balloon` not loaded in the guest). Go higher only after a host RAM upgrade |
    | Disks | `scsi0`: boot zvol on `fastpool` (502 GB); `scsi1`: 1.5 TB data disk for `/mnt/tank` (record its storage ID from `qm config 100` **now**, while the host is healthy). VirtIO SCSI, `discard=on`, `ssd=1` |
    | NIC | `virtio`, bridge `vmbr0` (guest interface `enp6s18`) |
    | Display | default (Virtio GPU) plus `hostpci0: <nvidia-pci-id>,pcie=1` for the RTX 2060 SUPER |
@@ -81,12 +81,14 @@ Boot the VM from a Debian live ISO, `fsck.ext4 -f /dev/sda1`, mount it, chroot, 
 
 ## 2. VM 100 restoration
 
-### 2.1 Preferred path: restore from PBS / vzdump (once §5.1 is implemented)
+### 2.1 Preferred path: restore from the vzdump backup (nightly since 2026-09-27)
+
+The backup holds the boot disk only. After restoring, `/mnt/tank` (data disk on hddpool) must still be there, or be recreated empty; its contents are not in the archive.
 
 ```bash
 # On PVE
-pvesm list <backup-storage>                       # find the newest vzdump-qemu-100-*.vma.zst or PBS snapshot
-qmrestore <archive-or-pbs-path> 100 --storage fastpool --unique 0
+pvesm list hddpool-backups                        # find the newest vzdump-qemu-100-*.vma.zst
+qmrestore <archive-path> 100 --storage fastpool --unique 0
 qm set 100 --hostpci0 <nvidia-pci-id>,pcie=1      # passthrough is not always preserved
 qm start 100
 ```
@@ -213,7 +215,7 @@ flowchart LR
     end
     subgraph PVE["Proxmox"]
         VZ["vzdump / PBS job for VM 100<br/>nightly, agent-quiesced, keep 7d/4w/6m"]
-        SNAP["zfs auto-snapshots<br/>fastpool/vm-100-disk-0 hourly×24, daily×7"]
+        SNAP["zfs auto-snapshots<br/>fastpool/vm-100-disk-1 hourly×24, daily×7"]
     end
     HDD["hddpool/backups"]
     OFF["Offsite: PBS remote sync or<br/>restic/rclone → object storage"]
@@ -226,8 +228,8 @@ flowchart LR
 
 ### 5.2 Implementation checklist
 
-- [ ] **Hypervisor:** create a vzdump backup job for VM 100 to `hddpool/backups` (mode `snapshot`, compression `zstd`, 03:00, keep-daily 3 / keep-weekly 2). First free the data disk's reservation and cap the dataset at 600 GB; exact commands in [host-and-vm.md](../architecture/host-and-vm.md#hddpool-space-and-the-planned-vm-backup-2026-09-26). Guest agent: ✅ on (2026-09-26).
-- [ ] **Hypervisor:** enable `zfs-auto-snapshot` or sanoid on `fastpool/vm-100-disk-0` and, after the storage realignment, on `fastpool/appdata`.
+- [x] **Hypervisor:** vzdump job for VM 100 to `hddpool-backups` (snapshot, zstd, 05:00, keep-last 7, 50 MiB/s limit). First good run 2026-09-27; settings and pitfalls in [host-and-vm.md](../architecture/host-and-vm.md#vm-100-backup-working-since-2026-09-27). Still open: check the data disk's `refreservation`, and one test restore.
+- [ ] **Hypervisor:** enable `zfs-auto-snapshot` or sanoid on `fastpool/vm-100-disk-1` and, after the storage realignment, on `fastpool/appdata`.
 - [ ] **Guest:** export `hddpool/backups` via NFS from PVE (or attach a second disk) and mount it at `/mnt/backups`; re-point `mc-backup` `/backups` and the Terraria cron there.
 - [x] **Guest:** fix the Terraria cron: `-C /srv/games/terraria` (done).
 - [ ] **Guest:** add nightly `pg_dumpall` for Supabase **and Immich**, an rsync of `/mnt/tank/immich`, and a config tar (list in the diagram) to the same mount; prune with `find -mtime +14 -delete`.
@@ -244,16 +246,16 @@ flowchart LR
 | Terraria archive | Same `gzip -t`; confirm a `.wld` is present and non-zero | Server starts from extracted world |
 | Supabase dump | `pg_dumpall` → restore into `docker run --rm -e POSTGRES_PASSWORD=x supabase/postgres:17.6.1.136` on a scratch port; `psql -c '\dt auth.*'` | Tables present, row counts match production |
 | Immich dump | Restore `immich-db.sql.gz` into a scratch `ghcr.io/immich-app/postgres` container; `psql -c 'select count(*) from asset'` | Count matches the Immich admin UI |
-| VM-level restore | `qmrestore` the latest vzdump into VMID 900 on an isolated bridge, boot, `docker ps` | All stacks come up without manual edits |
-| ZFS snapshot rollback | On PVE: `zfs clone fastpool/vm-100-disk-0@<snap> fastpool/test-clone`, attach to VMID 900 | Boots and mounts cleanly |
+| VM-level restore | Shut down VM 100 first (the host has RAM for only one VM this size, and the GPU can only go to one). `qmrestore <archive> 900 --storage fastpool --unique 1`; then `qm set 900 --delete hostpci0` and `qm set 900 --delete net0` so it can't clash with VM 100 on the network; boot it, log in on the Proxmox console, `docker ps`. Afterwards `qm destroy 900` and start VM 100. Needs ~65 GB free on fastpool | Boots; all containers come up (GPU ones fail without the GPU, which is expected) |
+| ZFS snapshot rollback | On PVE: `zfs clone fastpool/vm-100-disk-1@<snap> fastpool/test-clone`, attach to VMID 900 | Boots and mounts cleanly |
 | Cert renewal | `certbot renew --dry-run` | "Congratulations, all simulated renewals succeeded" |
 | Tailscale watchdog | `systemctl stop tailscaled`; wait ≤ 5 min | `tailscale status` back online, log line appended |
 | Restore-time drill | Time a full §2.2 rebuild in a scratch VM | ≤ 4 h, and the drill notes update this runbook |
 
-### 5.4 Known gaps as of 2026-09-26
+### 5.4 Known gaps as of 2026-09-28
 
-1. No hypervisor-level backup job yet, so VM 100 has no restorable image (guest agent is now on; the job is planned).
-2. All guest backups sit inside VM 100 (`/mnt/tank/backups`), so losing the VM loses the backups too.
-3. **Immich (47 GB library + DB)**, Supabase Postgres, Vaultwarden and n8n have no backups at all.
+1. The VM backup (nightly since 2026-09-27) covers the **boot disk only** and has never been test-restored. Supabase, Vaultwarden, n8n, the Immich database and the game worlds are on the boot disk, so they are now covered at VM level.
+2. The data disk (`/mnt/tank`) has no backup: the **Immich photo library (47 GB)**, the in-VM game backups and Stirling data. It sits on hddpool, the same pool as the VM backups.
+3. No app-level dumps (Postgres `pg_dumpall` etc.), so restoring a single database means restoring the whole VM first.
 4. No offsite copy of anything, including the secrets and the tunnel token needed to make a restore useful.
-5. `hddpool/backups` and `hddpool/media` are empty. The 1.5 TB data disk reserves its full size on hddpool until `refreservation=none` is set.
+5. `hddpool/media` is empty. The 1.5 TB data disk may still reserve its full size on hddpool (`zfs get refreservation hddpool/vm-100-disk-0` to check).

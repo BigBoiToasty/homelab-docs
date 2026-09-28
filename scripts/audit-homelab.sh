@@ -964,9 +964,12 @@ section_automation() {
 # ---------------------------------------------------------------------------
 
 oom_events() {
-  local n
-  n=$(journalctl -k -b --no-pager -o cat 2>/dev/null | grep -ciE 'out of memory|oom-kill|killed process' || true)
-  printf 'Kernel OOM events this boot: %s\n' "$n"
+  local n nv
+  # The kernel's own counter; journal greps also match NVIDIA driver "Out of memory" lines.
+  n=$(awk '/^oom_kill /{print $2}' /proc/vmstat 2>/dev/null)
+  printf 'Kernel OOM kills this boot: %s\n' "${n:-unknown}"
+  nv=$(journalctl -k -b --no-pager -o cat 2>/dev/null | grep -c 'NVRM:.*NV_ERR_NO_MEMORY' || true)
+  printf 'NVIDIA driver allocation retries (NV_ERR_NO_MEMORY, usually harmless): %s\n' "${nv:-0}"
   journalctl -k -b --no-pager -o short-iso 2>/dev/null \
     | grep -iE 'killed process' | tail -n 8 \
     | sed -E 's/(Killed process [0-9]+ \([^)]+\)).*/\1/' || true

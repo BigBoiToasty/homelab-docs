@@ -43,6 +43,8 @@ After editing the compose file, run `docker compose up -d` in `~/docker/ai-tools
 
 **If Ollama or Jellyfin won't start** with `could not select device driver "nvidia"`: the NVIDIA Container Toolkit is missing. That happened on 2026-09-26: `apt-get purge ... libnvidia-*` also matched `libnvidia-container1` and removed the toolkit with the old driver. Fix: `apt install nvidia-container-toolkit`, `nvidia-ctk runtime configure --runtime=docker`, `systemctl restart docker`.
 
+**Harmless kernel messages when the model loads.** Each time the model loads (for example after a VM reboot), `journalctl -k` shows a burst of `NVRM: ... Out of memory [NV_ERR_NO_MEMORY]` and `Allocation failed with big page size, retrying with default page size`. The driver couldn't get one large block of system RAM, retried with small pages and succeeded; `ollama ps` still shows `100% GPU`. Seen 2026-09-27 13:15, together with ~1 GB of cold pages moving to swap while the 5.4 GB model file was read. They are not OOM kills (`grep oom_kill /proc/vmstat` stays 0).
+
 Still open: a RAM cap (`mem_limit`) for the container, and `OLLAMA_MAX_LOADED_MODELS=1`.
 
 ## Stirling-PDF: what the 7.6 GB really is
