@@ -10,7 +10,7 @@
 ## 🔴 In progress
 
 - [ ] **Finish the VM 100 backup setup.** The first manual backup worked on 2026-09-27 ([details](../architecture/host-and-vm.md#vm-100-backup-working-since-2026-09-27)). Left to do (on the Proxmox host):
-  1. Confirm the nightly 05:00 job exists (`pvesh get /cluster/backup`) and that the first scheduled run finished with `OK`.
+  1. The nightly 05:00 job exists (seen under Datacenter → Backup, 2026-09-28). Check that its first scheduled run finished with `OK` (`ls -lh /hddpool/backups/dump/`, newest `.log` ends with "Finished Backup of VM 100").
   2. Once, do a real test restore (see [disaster-recovery §5.3](../runbooks/disaster-recovery.md#53-validation-procedures-run-quarterly-record-results)). `zstd -t` only proves the file decompresses, not that the VM boots from it. It needs VM 100 stopped, because the host can't run two VMs this size.
 - [ ] **Back up the data disk's irreplaceable files (Immich photos first).** The VM backup skips the 1.5 TB `/mnt/tank` disk. Backing it up to hddpool wouldn't help anyway, since it already lives there. The photos need a copy on fastpool or off-site (see the Immich task below).
 - [ ] **Keep an eye on VM memory.** The VM runs on 11 GB since 2026-09-27; 12 GB left the host too little RAM during backups. Ollama's model is on the GPU, so ~2–3.5 GB stays available and cold pages sit in swap without active swapping. The host only has 16 GB, so the VM can't grow. Real fix: a RAM upgrade to 32 GB. Don't add more swap: it only hides the problem. → [services/README.md#memory-budget-11-gb-vm](../services/README.md#memory-budget-11-gb-vm)
