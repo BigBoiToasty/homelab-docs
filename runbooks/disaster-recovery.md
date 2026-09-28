@@ -228,7 +228,7 @@ flowchart LR
 
 ### 5.2 Implementation checklist
 
-- [x] **Hypervisor:** vzdump job for VM 100 to `hddpool-backups` (snapshot, zstd, 05:00, keep-last 7, 50 MiB/s limit). First good run 2026-09-27; settings and pitfalls in [host-and-vm.md](../architecture/host-and-vm.md#vm-100-backup-working-since-2026-09-27). Still open: check the data disk's `refreservation`, and one test restore.
+- [x] **Hypervisor:** vzdump job for VM 100 to `hddpool-backups` (snapshot, zstd, 05:00, keep-last 7, 50 MiB/s limit). First good run 2026-09-27; settings and pitfalls in [host-and-vm.md](../architecture/host-and-vm.md#vm-100-backup-working-since-2026-09-27). Data disk `refreservation=none` (checked 2026-09-28). Still open: one test restore.
 - [ ] **Hypervisor:** enable `zfs-auto-snapshot` or sanoid on `fastpool/vm-100-disk-1` and, after the storage realignment, on `fastpool/appdata`.
 - [ ] **Guest:** export `hddpool/backups` via NFS from PVE (or attach a second disk) and mount it at `/mnt/backups`; re-point `mc-backup` `/backups` and the Terraria cron there.
 - [x] **Guest:** fix the Terraria cron: `-C /srv/games/terraria` (done).
@@ -258,4 +258,4 @@ flowchart LR
 2. The data disk (`/mnt/tank`) has no backup: the **Immich photo library (47 GB)**, the in-VM game backups and Stirling data. It sits on hddpool, the same pool as the VM backups.
 3. No app-level dumps (Postgres `pg_dumpall` etc.), so restoring a single database means restoring the whole VM first.
 4. No offsite copy of anything, including the secrets and the tunnel token needed to make a restore useful.
-5. `hddpool/media` is empty. The 1.5 TB data disk may still reserve its full size on hddpool (`zfs get refreservation hddpool/vm-100-disk-0` to check).
+5. `hddpool/media` is empty. (The data disk no longer reserves its full size: `refreservation=none`, checked 2026-09-28.)

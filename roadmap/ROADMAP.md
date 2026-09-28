@@ -12,7 +12,6 @@
 - [ ] **Finish the VM 100 backup setup.** The first manual backup worked on 2026-09-27 ([details](../architecture/host-and-vm.md#vm-100-backup-working-since-2026-09-27)). Left to do (on the Proxmox host):
   1. Confirm the nightly 05:00 job exists (`pvesh get /cluster/backup`) and that the first scheduled run finished with `OK`.
   2. Once, do a real test restore (see [disaster-recovery §5.3](../runbooks/disaster-recovery.md#53-validation-procedures-run-quarterly-record-results)). `zstd -t` only proves the file decompresses, not that the VM boots from it. It needs VM 100 stopped, because the host can't run two VMs this size.
-  3. Check whether the data disk still reserves its full 1.5 TB: `zfs get refreservation hddpool/vm-100-disk-0`. If it does, `zfs set refreservation=none hddpool/vm-100-disk-0`.
 - [ ] **Back up the data disk's irreplaceable files (Immich photos first).** The VM backup skips the 1.5 TB `/mnt/tank` disk. Backing it up to hddpool wouldn't help anyway, since it already lives there. The photos need a copy on fastpool or off-site (see the Immich task below).
 - [ ] **Keep an eye on VM memory.** The VM runs on 11 GB since 2026-09-27; 12 GB left the host too little RAM during backups. Ollama's model is on the GPU, so ~2–3.5 GB stays available and cold pages sit in swap without active swapping. The host only has 16 GB, so the VM can't grow. Real fix: a RAM upgrade to 32 GB. Don't add more swap: it only hides the problem. → [services/README.md#memory-budget-11-gb-vm](../services/README.md#memory-budget-11-gb-vm)
 - [ ] **Tune Immich background uploads/jobs.** Lower job concurrency in Admin → Jobs and run face detection / smart search overnight so they don't fight the game servers. → [services/immich.md](../services/immich.md#memory-and-cpu)
@@ -58,6 +57,7 @@ Things that can lose data or are one-line fixes.
 
 ## ✅ Done
 
+- ✅ Data disk no longer reserves its full 1.5 TB on hddpool (`refreservation=none`, checked 2026-09-28).
 - ✅ First Proxmox backup of VM 100: storage `hddpool-backups` (600 GiB), 46 GB archive in 2 h 51 min, VM never paused. Nightly job at 05:00, keep-last 7 (2026-09-27/28).
 - ✅ Daily `fstrim` at 04:30 instead of weekly, so the backup doesn't read deleted blocks (2026-09-27).
 - ✅ VM RAM 12 → 11 GB so the host keeps enough RAM during backups (2026-09-27).
