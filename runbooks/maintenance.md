@@ -29,6 +29,7 @@ grep -h 'Finished Backup\|ERROR' /hddpool/backups/dump/vzdump-qemu-100-*.log | t
 | 05:00 | Proxmox host (Datacenter → Backup) | vzdump of VM 100's boot disk to `hddpool-backups`, keep 7; ~1–3 h |
 | ~06:00–07:00 | VM (`apt-daily-upgrade.timer`, randomized) | Package list refresh / upgrades |
 | every 24 h from container start | VM (`mc-backup`) | Minecraft world → `/mnt/tank/backups/minecraft` |
+| every 5 min | VM (root cron) | Portfolio: pull from GitHub and rebuild if `main` changed ([web-apps](../services/web-apps.md#updating)) |
 
 Don't reboot the host or the VM between 05:00 and ~08:00 without checking whether the backup is still running (`pgrep -a vzdump` on the host). A running backup can be followed with `journalctl -fu <unit>` or in the web UI under the node's Tasks.
 

@@ -11,6 +11,16 @@
 
 ## Updating
 
+**The portfolio updates itself** (since 2026-09-29). Every 5 minutes root's cron runs `/usr/local/bin/portfolio-update.sh`. When GitHub's `main` has a new commit, it resets `~/docker/portfolio/repo` to match GitHub exactly and runs the build container. nginx serves `repo/dist` directly, so no restart is needed. A push is live within ~5 minutes; the build takes seconds, and the site may show errors while it runs.
+
+- **GitHub is the source of truth.** Edits made directly in `~/docker/portfolio/repo` are overwritten on the next update. Change the site on GitHub (or push from your PC).
+- **A failed build rolls back** to the previous commit. The failed commit is saved in `~/docker/portfolio/.last-failed-commit` and skipped until the next push.
+- **Log:** `tail /var/log/portfolio-update.log`. Update now instead of waiting: run `/usr/local/bin/portfolio-update.sh`.
+- The repo is public, so fetching needs no login. The server can't push.
+- `reference/` in the repo holds design references (including an old resume copy); only `public/` ends up on the site.
+
+Manual commands:
+
 ```bash
 # Mush
 cd ~/Mush && npm ci && npm run build && docker compose up -d
