@@ -83,7 +83,12 @@ flowchart TB
 - The VM advertises no subnet routes and is not an exit node; tailnet peers reach only the VM's own ports. No `serve`/`funnel` configuration.
 - MagicDNS gives `debian-docker.<tailnet>.ts.net`; use it instead of the raw `100.x.x.x` address.
 - `tailscaled` listens on UDP `41641` and two TCP ports bound to the tailnet addresses only.
-- **Watchdog:** root cron every 5 minutes runs `/usr/local/bin/tailscale-watchdog.sh`, which pings `100.100.100.100` and restarts `tailscaled` on failure. The log `/var/log/tailscale-watchdog.log` has not grown since 2026-09-11 (16 lines).
+- **Watchdog:** root cron every 5 minutes runs `/usr/local/bin/tailscale-watchdog.sh`. It pings `100.100.100.100` and restarts `tailscaled` if that fails. Rewritten 2026-10-03 after the [memory incident](../services/README.md#2026-10-03-the-vm-ran-out-of-memory), where the old version restarted Tailscale 46 times without helping:
+  - only one copy runs at a time (`flock`), and the ping, restart and `tailscale up` each have a time limit, so a stuck run can't pile up;
+  - if less than 300 MB of RAM is available it **skips the restart** and logs that the problem is memory;
+  - every log line in `/var/log/tailscale-watchdog.log` includes free RAM and swap.
+  The old script is kept as `tailscale-watchdog.sh.bak-20261003`. Systemd also restarts `tailscaled` itself (`Restart=always`, `RestartSec=10s` in its drop-in).
+- **Reserved memory (2026-10-03):** `tailscaled` has `MemoryMin=160M` and `sshd` `MemoryMin=32M`, both with `OOMScoreAdjust=-900`, in `/etc/systemd/system/{tailscaled,ssh}.service.d/override.conf`. The kernel won't take that memory from them and kills almost anything else first. `tailscaled` normally uses ~80 MB. This keeps remote access alive longer under pressure, but it can't save a VM that is completely out of memory: the real protection is the container caps.
 - Tailscale adds its own nftables chains; the host `INPUT` policy is otherwise `ACCEPT` and `DOCKER-USER` is empty (no ufw, no fail2ban).
 
 ### 2.4 Game traffic via Playit.gg

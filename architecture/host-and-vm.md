@@ -87,7 +87,7 @@ During the good run the VM never paused, CPU steal peaked at 0.4 % and at least 
 | GPU | RTX 2060 SUPER, NVIDIA driver 615 (open kernel module) + container toolkit 1.20.1. Used by Ollama and Jellyfin |
 | QEMU guest agent | **On** in Proxmox and in the VM (2026-09-26) |
 | Uptime | rebooted 2026-09-26 ~17:10 |
-| Stability | No OOM kills and no CPU stall warnings this boot (the 09-23 boot had both) |
+| Stability | Ran out of RAM and swap on 2026-10-03 (~19:30) and was restarted from Proxmox at 22:50; cause and fixes in [services/README.md](../services/README.md#2026-10-03-the-vm-ran-out-of-memory). The 09-23 boot also had OOM kills and CPU stalls |
 
 ### Core services on the VM
 
@@ -95,9 +95,9 @@ During the good run the VM never paused, CPU steal peaked at 0.4 % and at least 
 |---|---|---|
 | `docker` / `containerd` | running | Runs all containers |
 | `cloudflared` | running | Cloudflare Tunnel: publishes the portfolio site |
-| `tailscaled` | running | Private network access to everything |
-| `ssh` | running | Remote login (root + password allowed; see security) |
-| `cron` | running | Terraria backup (04:00), Tailscale watchdog every 5 min |
+| `tailscaled` | running | Private network access to everything. Reserved memory + OOM protection since 2026-10-03 |
+| `ssh` | running | Remote login (root + password allowed; see security). Reserved memory + OOM protection since 2026-10-03 |
+| `cron` | running | Terraria backup (04:00), Tailscale watchdog and portfolio auto-update every 5 min |
 | `certbot.timer` + `snap.certbot.renew.timer` | waiting | Certificate renewal. **Two installs**; keep the snap one |
 | `playit` | running | Game tunnel agent. **Duplicate** of the `playit` container |
 | `qemu-guest-agent` | running | Lets Proxmox freeze the disks for consistent backups |
@@ -110,6 +110,7 @@ Besides Docker, the VM runs a headless browser desktop used by Playwright (brows
 
 - **Xvfb** display `:99` → **x11vnc** on :5900 → **noVNC** (in the browser) on :3010, plus Google Chrome.
 - Since 2026-09-25, VNC listens on the **Tailscale IP only** (not the LAN, not IPv6). Start/stop it with `/usr/local/bin/vnc-tailscale.sh [start|stop|status]`. It is **not** started at boot: run it after Xvfb is up.
+- **Claude Code** is installed with npm (`/usr/lib/node_modules/@anthropic-ai/claude-code`, version 2.1.289 on 2026-10-03). Its automatic update failed during the 2026-10-03 memory incident and it had to be reinstalled; settings and memory in `~/.claude` survived. Each open Claude session uses ~250–350 MB, and sessions that used Playwright leave Chrome processes behind: close old sessions you're not using.
 - Chrome uses ~1 GiB with no limit. The long-term plan is to containerise it with a 1.5 GiB cap and `shm_size: 1gb`. Chrome needs a large `/dev/shm`, and the cap limits it to ~6–8 tabs before a tab (not the browser) is killed.
 
 ## Disks and storage

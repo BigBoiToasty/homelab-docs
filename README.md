@@ -1,13 +1,13 @@
 # Homelab
 
-**Last updated:** 2026-09-28
+**Last updated:** 2026-10-03
 
 **What changed:**
-- First working Proxmox backup of VM 100 (2026-09-27): 46 GB file on `hddpool-backups`, archive checked with `zstd -t`. The VM ran normally the whole time. A nightly 05:00 job uses the same settings.
-- It covers the **boot disk only**. The 1.5 TB data disk (`/mnt/tank`, including the Immich photos) is still not backed up.
-- VM RAM lowered to 11 GB. That is what made the backup stable: the 09-27 overnight attempt froze the VM and was interrupted.
-- The VM's disk trim now runs daily at 04:30 (was weekly), right before the backup, so backups don't read ~30 GB of deleted blocks.
-- The 13:15 NVIDIA "Out of memory" kernel lines were Ollama loading its model, not a real problem. The audit script no longer counts them as OOM kills.
+- On 2026-10-03 the VM ran out of RAM and swap. Tailscale went offline and the VM had to be restarted from Proxmox. [What happened](services/README.md#2026-10-03-the-vm-ran-out-of-memory).
+- The main cause was Ollama: the model is on the GPU, but its prompt cache lives in system RAM and was allowed to grow to 8 GB. It is now capped at 1 GB, and the container at 3 GB. [Details](services/ai-tools.md#why-ollama-used-system-ram-although-the-model-is-on-the-gpu-fixed-2026-10-03).
+- Tailscale and SSH now have reserved memory, and the Tailscale watchdog no longer restarts it in a loop when the problem is memory.
+- Claude Code had to be reinstalled: its automatic update failed during the memory crunch.
+- The portfolio site rebuilds itself from GitHub every 5 minutes (since 2026-09-29).
 
 ## Where to find what
 
@@ -48,7 +48,7 @@ flowchart TB
     end
 
     subgraph PVE["Proxmox server · ZFS fastpool (SSD) + hddpool (HDD) · RTX 2060 SUPER"]
-        subgraph VM["VM 100 debian-docker · Debian 12 · 4 vCPU · 12 GB RAM"]
+        subgraph VM["VM 100 debian-docker · Debian 12 · 4 vCPU · 11 GB RAM"]
             NGINX["nginx-proxy<br/>immich · n8n · pdf · supabase · mush<br/>.example.com"]
             PORT["portfolio site"]
             GAMES["Minecraft · Terraria"]
@@ -69,14 +69,14 @@ flowchart TB
 
 Details: [architecture/networking-and-security.md](architecture/networking-and-security.md).
 
-## Health snapshot (2026-09-26)
+## Health snapshot (2026-10-03, after the reboot)
 
 | | Status | Notes |
 |---|---|---|
-| Containers | 🟢 40/40 running | 0 OOM kills |
+| Containers | 🟢 40/40 running | 0 OOM kills this boot |
 | Disk | 🟢 boot 15 %, data 3 % | 502 GB boot + 1.5 TB data disk |
-| Memory | 🟡 swap 5.1 / 8 GB, ~3.4 GB RAM available | Old pages parked in swap, no active swapping (`vmstat` si/so = 0). The Ollama model now sits in GPU memory |
-| Backups | 🔴 partial | Game worlds only (both verified 2026-09-26); **Immich, Supabase, Vaultwarden, n8n have none**; VM backup job not created yet |
+| Memory | 🟡 swap 3.0 / 8 GB, ~2.8 GB RAM available | Ran out on 2026-10-03; Ollama now capped. Watch swap over the next days |
+| Backups | 🔴 partial | Nightly VM boot-disk backup (05:00) and game worlds; **Immich photos (data disk), Supabase, Vaultwarden, n8n have no separate backup**; no test restore yet |
 | Public exposure | 🟡 small | Portfolio + game servers (game servers have no whitelist/password) |
 | GPU | 🟢 in use | Ollama (5.4 of 8 GB VRAM) and Jellyfin; driver 615 |
 | Updates | 🟡 50 OS updates pending | No automatic updates |
@@ -84,7 +84,7 @@ Details: [architecture/networking-and-security.md](architecture/networking-and-s
 
 ## 📌 Current Focus & Roadmap
 
-- 🔴 **In Progress:** Proxmox backup job for VM 100 on hddpool (free the disk reservation, add the storage, create the job, test a restore).
+- 🔴 **In Progress:** Test-restore the VM 100 backup once; watch VM memory after the 2026-10-03 incident.
 - 🟠 **Urgent:** Off-site backups for Immich, Supabase, Vaultwarden and n8n; lock the public game servers (whitelist / password).
 - 🟡 **Next Up:** Tune Immich background jobs, security quick wins (2FA, `.env` permissions), Stirling-PDF heap-dump cleanup.
 - 📋 **Full List:** See [roadmap/ROADMAP.md](roadmap/ROADMAP.md) for detailed task tracking and future architecture plans.

@@ -1,6 +1,6 @@
 # Roadmap
 
-> Planned work, tech debt and wishlist for the homelab. Last updated 2026-09-28.
+> Planned work, tech debt and wishlist for the homelab. Last updated 2026-10-03.
 > Each task says **why** it matters and links to where the details live. Tick the box when done and move the line to [Done](#-done).
 
 **Legend:** 🔴 in progress · 🟠 urgent (risk of losing data) · 🟡 soon · ⚪ someday · ✅ done
@@ -13,7 +13,8 @@
   1. The nightly 05:00 job exists (seen under Datacenter → Backup, 2026-09-28). Check that its first scheduled run finished with `OK` (`ls -lh /hddpool/backups/dump/`, newest `.log` ends with "Finished Backup of VM 100").
   2. Once, do a real test restore (see [disaster-recovery §5.3](../runbooks/disaster-recovery.md#53-validation-procedures-run-quarterly-record-results)). `zstd -t` only proves the file decompresses, not that the VM boots from it. It needs VM 100 stopped, because the host can't run two VMs this size.
 - [ ] **Back up the data disk's irreplaceable files (Immich photos first).** The VM backup skips the 1.5 TB `/mnt/tank` disk. Backing it up to hddpool wouldn't help anyway, since it already lives there. The photos need a copy on fastpool or off-site (see the Immich task below).
-- [ ] **Keep an eye on VM memory.** The VM runs on 11 GB since 2026-09-27; 12 GB left the host too little RAM during backups. Ollama's model is on the GPU, so ~2–3.5 GB stays available and cold pages sit in swap without active swapping. The host only has 16 GB, so the VM can't grow. Real fix: a RAM upgrade to 32 GB. Don't add more swap: it only hides the problem. → [services/README.md#memory-budget-11-gb-vm](../services/README.md#memory-budget-11-gb-vm)
+- [ ] **Keep an eye on VM memory.** The VM runs on 11 GB since 2026-09-27; 12 GB left the host too little RAM during backups. On 2026-10-03 it ran out of RAM and swap anyway, mainly because of Ollama's prompt cache; that is now capped ([incident](../services/README.md#2026-10-03-the-vm-ran-out-of-memory)). Check `free -h` over the next week: swap should stay well below 8 GB.
+- [ ] **Close old Claude sessions and leftover Chrome.** On 2026-10-03, 3 forgotten Claude sessions and 27 Playwright Chrome processes held ~2.7 GB. `ps -eo pid,etime,rss,comm --sort=-rss | head -20` shows them. The host only has 16 GB, so the VM can't grow. Real fix: a RAM upgrade to 32 GB. Don't add more swap: it only hides the problem. → [services/README.md#memory-budget-11-gb-vm](../services/README.md#memory-budget-11-gb-vm)
 - [ ] **Tune Immich background uploads/jobs.** Lower job concurrency in Admin → Jobs and run face detection / smart search overnight so they don't fight the game servers. → [services/immich.md](../services/immich.md#memory-and-cpu)
 
 ## 🟠 Short-term / immediate
@@ -57,6 +58,9 @@ Things that can lose data or are one-line fixes.
 
 ## ✅ Done
 
+- ✅ Ollama's prompt cache capped at 1 GiB (`LLAMA_ARG_CACHE_RAM=1024`) and the container at 3 GiB, after it grew to ~5.5 GB and filled the VM (2026-10-03).
+- ✅ `tailscaled` and `sshd` have reserved memory and OOM protection; the Tailscale watchdog skips pointless restarts when memory is the problem (2026-10-03).
+- ✅ Portfolio rebuilds itself from GitHub every 5 minutes (`portfolio-update.sh`, 2026-09-29).
 - ✅ Data disk no longer reserves its full 1.5 TB on hddpool (`refreservation=none`, checked 2026-09-28).
 - ✅ First Proxmox backup of VM 100: storage `hddpool-backups` (600 GiB), 46 GB archive in 2 h 51 min, VM never paused. Nightly job at 05:00, keep-last 7 (2026-09-27/28).
 - ✅ Daily `fstrim` at 04:30 instead of weekly, so the backup doesn't read deleted blocks (2026-09-27).
@@ -99,7 +103,7 @@ Things that can lose data or are one-line fixes.
 | 3.2 | VRAM balancing (Ollama) | 🟡 | Ollama on the GPU (5.4 of 8 GB); no balancing with other GPU users yet |
 | 3.3 | Moonlight streaming | ⚪ | |
 | 3.4 | Web terminals (ttyd) | ⚪ | |
-| 3.5 | RAM caps & Ollama isolation | 🟡 | Immich capped, Ollama model in VRAM; Ollama container still uncapped |
+| 3.5 | RAM caps & Ollama isolation | 🟡 | Immich capped, Ollama model in VRAM, Ollama capped at 3 GiB with a 1 GiB prompt cache (2026-10-03); Supabase and host programs still uncapped |
 | 4.1 | AI workstation (RX 9070 XT) | ⚪ | |
 | 4.2 | Wake-on-LAN | ⚪ | |
 | 5.1 | Custom React dashboard | ⚪ | Mush front-end exists |
@@ -113,7 +117,7 @@ Things that were planned one way and are actually another. Re-check with the aud
 | Item | Design | 2026-09-16 | 2026-09-25 | Action |
 |---|---|---|---|---|
 | Stirling-PDF memory | 512 MiB, `-Xmx256m` | 1 GiB, defaults, stopped | 1 GiB, defaults, running; 33 heap dumps show repeated OOMs | Short-term |
-| Ollama limits | RAM/VRAM caps | no cap, CPU | 09-26: on the GPU, keep-alive -1, no RAM cap | Mid-term |
+| Ollama limits | RAM/VRAM caps | no cap, CPU | 09-26: on the GPU, keep-alive -1, no RAM cap; 10-03: 3 GiB cap, prompt cache 1 GiB | ✅ |
 | Chrome desktop | container, 1.5 GiB | native, VNC open | native, VNC tailnet-only | Backlog |
 | Media library | `hddpool/media` | empty dir on root disk | empty dir on data disk | Mid-term |
 | Backups | `hddpool/backups` + PBS | same disk as data | inside the VM; 09-27: vzdump of the boot disk to `hddpool-backups`, nightly 05:00; data disk not included | In progress |
@@ -128,5 +132,5 @@ Things that were planned one way and are actually another. Re-check with the aud
 | Root disk | — | 102 GB, 88 % | 502 GB, 15 % | ✅ |
 | Log rotation | bounded | none | none | Mid-term |
 | Monitoring | full | 1 scrape job | unchanged | Mid-term |
-| Guest RAM | 12 GB | swap 5.7 GiB | swap 7.9 GiB (full); 09-26: 5.1 GiB, not thrashing; 09-27: lowered to 11 GB, 4–5 GiB cold swap, no active swapping | Watch |
+| Guest RAM | 12 GB | swap 5.7 GiB | swap 7.9 GiB (full); 09-26: 5.1 GiB, not thrashing; 09-27: lowered to 11 GB, 4–5 GiB cold swap, no active swapping; 10-03: RAM + swap full, VM unreachable, Ollama capped afterwards | Watch |
 | Guest agent | on | inactive | 09-26: on, both sides | ✅ |
