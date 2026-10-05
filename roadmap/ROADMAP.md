@@ -23,15 +23,24 @@ Things that can lose data or are one-line fixes.
 - [ ] **Reseat the 256 GB M.2 SSD in the Proxmox host.** It shows 77 connection (CRC) errors and 2241 power cycles in 2031 hours, a sign of a loose connection; the flash itself is healthy. Shut down, unplug, reseat, tighten the screw. Then recheck `smartctl -a /dev/sda | grep -iE "crc|power_cycle"` every few days: if the numbers still climb, plan a replacement. → [host-and-vm.md](../architecture/host-and-vm.md#proxmox-host)
 - [ ] **Off-site copy** of the photos and `/root/backups/app-dumps` (Backblaze B2 ≈ $0.30/month for 48 GB with restic, or the Windows desktop over Tailscale). Protects against fire/theft/surge, which take out both pools.
 
+## 🌐 Make Mush public (planned 2026-10-04)
+
+Mush's front end calls `https://supabase.example.com` from the visitor's browser, so the Supabase API has to be public too. Checked 2026-10-04: secrets are custom (not the example defaults); `binders`, `binder_slots` and `profiles` have row-level security with owner-only policies; SMTP is configured.
+
+- [ ] You (Cloudflare): delete the `mush` and `supabase` A records (they point at the Tailscale IP), then add both as public hostnames on the existing tunnel.
+- [ ] Claude: a public-only nginx entry for the Supabase API that passes only `/auth/v1`, `/rest/v1`, `/storage/v1`, `/realtime/v1`, `/functions/v1`. **Supabase Studio (the admin dashboard) stays tailnet-only** under its own name.
+- [ ] Claude: turn off `ENABLE_EMAIL_AUTOCONFIRM`, so sign-ups must confirm their email (test that SMTP sends first).
+- [ ] Test from outside (phone on mobile data, Tailscale off): sign up, log in, Google login, create a binder.
+
 ## 🎮 Game streaming (owner's next big project, planned 2026-10-04)
 
 Goal: play BOTW, Sekiro, Ghost of Tsushima and TOTK from the server on the Retroid Pocket Flip 2 (Moonlight), at home and away via Tailscale. Minecraft and Terraria must keep running. Ollama and n8n may pause while a game runs.
 
 - [ ] **Phase A, no new hardware: game mode + Wolf + BOTW as the first test.**
   1. You: Proxmox → VM 100 → Add → Hard Disk on **fastpool**, ~300 GB, **Backup unchecked** (games are re-downloadable and would bloat the nightly VM backup).
-  2. Claude: `game-mode on|off|status` script. *On* stops Ollama, n8n, Stirling-PDF, Immich ML (and Supabase if allowed), frees ~3 GB RAM + 5.4 GB VRAM. *Off* restarts them. Safety: automatic *off* at 04:00, before the backups.
+  2. Claude: `game-mode on|off|status` script. *On* stops Ollama, n8n, Stirling-PDF and Immich ML (~2.1 GB RAM + 5.4 GB VRAM). Supabase and Mush keep running (owner, 2026-10-04). *Off* restarts them. Safety: automatic *off* at 04:00, before the backups.
   3. Claude: install Wolf (Games on Whales) in its own compose project with the NVIDIA toolkit, udev rules for `/dev/uinput` + `/dev/uhid`, host network (Moonlight ports 47984/47989/48010 TCP, 47999/48100/48200 UDP; LAN + tailnet only, no port-forward). Game containers capped (~5 GB) so only the game can run out of memory.
-  4. Claude: BOTW via Cemu (in the ES-DE app image, or a small custom image). Needs a dump of your own copy.
+  4. First test game: something the owner already owns on Steam, or a free Steam game. BOTW/TOTK need a dump of an owned copy; the owner's copy is on a Switch Lite, which normally can't be dumped (patched hardware), so the Zelda games are on hold.
   5. You: Tailscale + Moonlight on the Retroid, pair with Wolf's PIN. Test at home, then away.
 - [ ] **Phase B: RAM upgrade, then the big games.** Buy 2 × 8 GB used DDR4 desktop sticks (non-ECC, unbuffered `-U`, 2666 or 3200, about $50–65 used for a pair on 2026-10-04 prices) for the two empty `DIMM1` slots → 32 GB host. Then VM 11 → ~22 GB and 4 → 8 vCPU (one reboot), and add Steam (Sekiro, Ghost of Tsushima via Proton) and a Switch emulator (TOTK, CPU-limited on the i3-12100).
 - Not possible: the 2018 *Shadow of the Colossus* remake is PS4-only; the PS2 original runs in PCSX2.
