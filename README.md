@@ -4,7 +4,7 @@
 
 **What changed:**
 - All 51 pending OS updates installed (Docker, Tailscale, Cloudflare tunnel, kernel). Every service came back healthy. The new kernel starts at the next reboot; the NVIDIA driver is already built for it.
-- Certificates: all sites use one wildcard certificate, and nginx now reloads automatically after each renewal. Three old unused certificates are left over. [Details](architecture/networking-and-security.md#21-private-https-via-nginx-proxy-tailnet-only-by-dns).
+- Certificates: all sites use one wildcard certificate, nginx now reloads automatically after each renewal, the three old unused certificates are deleted, and a test renewal passed. [Details](architecture/networking-and-security.md#21-private-https-via-nginx-proxy-tailnet-only-by-dns).
 - 2FA: Tailscale and Cloudflare log in with Google, which has 2-Step Verification.
 - Earlier on 2026-10-04: one Playit agent instead of two, nightly photo copy and database dumps, Stirling heap dumps off, Docker log rotation.
 

@@ -48,7 +48,8 @@ How it is wired:
 **Certificates (checked 2026-10-04):** all six sites use **one wildcard certificate** (`example.com`, `*.example.com`, valid to 2026-12-23). It renews through Cloudflare DNS (`dns-cloudflare`), which works without any open port. Every `ssl_certificate` line in `nginx-proxy` points at it, and each site was checked to serve it. `/etc/letsencrypt` is bind-mounted read-only into `nginx-proxy`.
 
 - **Reload hook (added 2026-10-04):** `/etc/letsencrypt/renewal-hooks/deploy/reload-nginx-proxy.sh` runs `nginx -t` and then `nginx -s reload` in the container after every renewal, so the new certificate is served right away. Both certbot installs use this hooks folder. Tested by running it by hand.
-- **Three unused leftovers:** separate `mush`, `n8n` and `supabase`+`n8n` certificates (expire 2026-11-26). Nothing serves them. The `n8n` one renews with `standalone` (port 80 from the internet), which can't work here, so certbot will log a failure for it from ~2026-10-27. Harmless; remove with `certbot delete --cert-name <name>` to silence it.
+- **Old per-site certificates deleted (2026-10-04):** separate `mush`, `n8n` and `supabase`+`n8n` certificates that nothing served (the `n8n` one used `standalone` renewal, which can't work here). Backup of `/etc/letsencrypt` from before: `/root/letsencrypt-backup-20261004.tgz`. Only the old host-nginx configs in `/etc/nginx/sites-available/backup/` still mention them; that nginx is disabled.
+- **Renewal tested 2026-10-04:** `certbot renew --dry-run` for the wildcard succeeded.
 - Two certbot installs, each with its own timer: apt certbot 2.1.0 (`certbot.timer`) and the snap 5.8.0 with `certbot-dns-cloudflare` (`snap.certbot.renew.timer`). Redundant but harmless; the snap is the one to keep.
 
 ### 2.2 Cloudflare Tunnel
@@ -236,7 +237,7 @@ Internal-only (exposed, not published): node_exporter `9100`, supabase-db `5432`
 | 8 | Medium | Vaultwarden `SIGNUPS_ALLOWED=true` on a LAN/tailnet-reachable port | Set `false` once accounts exist. |
 | 9 | Low | No `unattended-upgrades`. All 51 pending updates were installed 2026-10-04 (Docker 29.8.2, Tailscale 1.102.4, cloudflared 2026.9.3, kernel 6.1.0-53) | Install updates monthly (`apt update && apt full-upgrade`), or `apt install unattended-upgrades` for security updates. |
 | 10 | ~~Medium~~ Fixed | ~~Duplicate Playit agents (host + container)~~ | Host service disabled 2026-10-04. |
-| 11 | Low | Two certbot installs with two renewal timers; three unused leftover certificates | Reload hook added 2026-10-04. Optional: `apt purge certbot` (keep the snap), `certbot delete` the three leftovers. |
+| 11 | Low | Two certbot installs with two renewal timers | Reload hook added, leftover certificates deleted and renewal dry-run passed (2026-10-04). Optional: `apt purge certbot` (keep the snap). |
 | 12 | Low | avahi and rpcbind listening with no consumer | `systemctl disable --now avahi-daemon rpcbind`. |
 | 13 | Medium | Minecraft is public via Playit with `online-mode=true` but **no whitelist** (0 entries, `enforce-whitelist=false`) and no ops | Set `ENABLE_WHITELIST=true`, `ENFORCE_WHITELIST=true` and `WHITELIST=<names>` in the `gaming` compose, then recreate. |
 | 14 | Medium | Terraria is public via Playit with **no server password** | Add `password=<YOUR_SECRET>` to `serverconfig.txt` (or the image's password variable). |

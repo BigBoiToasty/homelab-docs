@@ -32,7 +32,7 @@ Things that can lose data or are one-line fixes.
 
 ## 🟡 Mid-term infrastructure upgrades
 
-- [ ] **Optional certificate tidy-up.** Renewal and the nginx reload are automatic now. Left: `certbot delete` the three unused leftover certificates (one will log renewal failures from ~2026-10-27) and `apt purge certbot` (keep the snap). → [networking-and-security.md §2.1](../architecture/networking-and-security.md#21-private-https-via-nginx-proxy-tailnet-only-by-dns)
+- [ ] **Optional:** `apt purge certbot` so only the snap certbot runs (both work; it's just duplication). → [networking-and-security.md §2.1](../architecture/networking-and-security.md#21-private-https-via-nginx-proxy-tailnet-only-by-dns)
 - [ ] **Local DNS with Pi-hole or AdGuard Home** (optional). Today the public DNS records point at the Tailscale IP, which works but shows your tailnet address to anyone who looks it up. A local DNS server (or Tailscale split DNS) could answer `*.example.com` privately instead.
 - [ ] **Finish monitoring.** Prometheus + Grafana + Uptime-Kuma already run, but only VM-level metrics exist and there are no alerts. Add cAdvisor (per-container RAM/CPU) and alerts for swap > 80 %, disk > 85 %, hddpool > 80 % (it's overcommitted once the backup job exists), unhealthy containers and backups older than 26 h. → [services/management.md](../services/management.md#monitoring-gaps)
 - [ ] **Optional: Immich machine learning on the GPU** (`-cuda` image). It would have to share the 8 GB with Ollama; lower Ollama's keep-alive to `20m` first. → [services/ai-tools.md](../services/ai-tools.md#ollama-on-the-gpu)
@@ -87,7 +87,7 @@ Things that can lose data or are one-line fixes.
 - ✅ Root disk grown 102 → 502 GB, plus a 1.5 TB data disk (was 88 % full).
 - ✅ `pdf.example.com` has HTTPS.
 - ✅ Immich deployed.
-- ✅ Automatic certificate renewal (certbot timers) and nginx reload hook (2026-10-04). All sites use one wildcard certificate.
+- ✅ Automatic certificate renewal (certbot timers) and nginx reload hook; one wildcard certificate for all sites, three unused old ones deleted, renewal dry-run passed (2026-10-04).
 - ✅ Monitoring stack running (Prometheus, Grafana, Uptime-Kuma). *Alerts still missing; see mid-term.*
 - ✅ Stirling-PDF, Gluetun VPN kill switch, Minecraft (tuned Paper) and Terraria servers, Playit tunnels.
 
