@@ -242,7 +242,7 @@ Internal-only (exposed, not published): node_exporter `9100`, supabase-db `5432`
 | 13 | Medium | Minecraft is public via Playit with `online-mode=true` but **no whitelist** (0 entries, `enforce-whitelist=false`) and no ops | Set `ENABLE_WHITELIST=true`, `ENFORCE_WHITELIST=true` and `WHITELIST=<names>` in the `gaming` compose, then recreate. |
 | 14 | Medium | Terraria is public via Playit with **no server password** | Add `password=<YOUR_SECRET>` to `serverconfig.txt` (or the image's password variable). |
 | 15 | Low | Confirm in the Playit dashboard that only 25565 and 7777 are tunnelled, not RCON 25575 | Delete any other tunnels. |
-| 16 | Info | Accounts that control everything: the Tailscale login (joins the tailnet), the Cloudflare account and the Cloudflare API token in `~/docker/.env` (DNS + tunnel) | 2FA: done (both log in with Google, which has 2-Step Verification; 2026-10-04). Still open: scope the API token to `Zone:DNS:Edit` on one zone; review the tailnet devices. |
+| 16 | Info | Accounts that control everything: the Tailscale login (joins the tailnet), the Cloudflare account and the Cloudflare API token in `~/docker/.env` (DNS + tunnel) | 2FA: done (both log in with Google, which has 2-Step Verification; 2026-10-04). API tokens (checked 2026-10-04): certbot's token in `/etc/letsencrypt/cloudflare.ini` is already scoped (one zone, no account access, DNS yes, zone settings/WAF refused). `CLOUDFLARE_API_TOKEN` in `~/docker/.env` is **invalid** (Cloudflare rejects it) and nothing uses it. Still open: review the tailnet devices. |
 
 ### 6.3 Token scrubbing rules for this documentation
 

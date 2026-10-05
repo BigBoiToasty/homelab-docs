@@ -27,7 +27,7 @@ Things that can lose data or are one-line fixes.
 - [ ] **Off-site copy** of the photos and `/root/backups/app-dumps` (Backblaze B2 ≈ $0.30/month for 48 GB with restic, or the Windows desktop over Tailscale). Protects against fire/theft/surge, which take out both pools.
 - [ ] **Lock the public game servers.** Minecraft whitelist on (`ENABLE_WHITELIST`, `ENFORCE_WHITELIST`, `WHITELIST=`); Terraria server password; in the Playit dashboard, confirm only 25565 and 7777 are tunnelled. → [services/gaming.md](../services/gaming.md#who-can-reach-it)
 - [ ] **Review the tailnet devices** in the Tailscale admin console (Machines): remove any you don't recognize, such as a phone from another account that was offline for 8+ days on 2026-10-03.
-- [ ] **Scope the Cloudflare API token** to DNS-edit on one zone.
+- [ ] **Optional: tidy Cloudflare API tokens.** The one certbot uses is already limited to DNS on your one domain (checked 2026-10-04). The token in `~/docker/.env` no longer works and nothing uses it: delete that line, and in Cloudflare → My Profile → API Tokens delete any token you don't recognize.
 
 ## 🟡 Mid-term infrastructure upgrades
 
@@ -38,7 +38,6 @@ Things that can lose data or are one-line fixes.
 - [ ] **Reboot the VM once** to start the new kernel 6.1.0-53 (installed 2026-10-04; the NVIDIA driver is already built for it). Scheduled for 2026-10-05 09:00, after the nightly backup (one-time timer `oneoff-kernel-reboot.timer`; cancel with `systemctl stop oneoff-kernel-reboot.timer`). Afterwards check `docker exec ollama ollama ps` shows `100% GPU` after the first request.
 - [ ] **Patching from now on:** `apt update && apt full-upgrade` monthly (or `unattended-upgrades`), and `docker compose pull` for the internet-facing containers (portfolio nginx, Minecraft, Playit).
 - [ ] **LAN hardening (optional, if you ever share your network):** bind admin ports (Ollama 11434, Postgres 5432/6543, RCON 25575, dashboards) to `127.0.0.1` or the Tailscale IP, like VNC. Also: n8n back to `127.0.0.1:5678`, Homepage's Docker socket to `:ro`, SSH keys instead of the root password.
-- [ ] **Start VNC at boot:** turn `vnc-tailscale.sh` (and Xvfb) into systemd services.
 
 ## ⚪ Backlog / wishlist
 
@@ -60,6 +59,7 @@ Things that can lose data or are one-line fixes.
 - ✅ Duplicate Playit agent removed: the host `playit.service` and the container shared one secret and kept knocking each other off; only the container runs now (2026-10-04).
 - ✅ Stirling-PDF heap dumps gone and turned off (`JAVA_CUSTOM_OPTS=-XX:-HeapDumpOnOutOfMemoryError`, 2026-10-04).
 - ✅ Docker log rotation set in `daemon.json` (10 MB × 3), active from the next Docker start / container recreate (2026-10-04).
+- ⚪ Decided **not** to start VNC at boot: it's only needed for job applications, so it's started by hand then (2026-10-04).
 - ⚪ Decided **not** to `chmod 600` the `.env` files: only root and the owner log in (2026-10-04).
 - ✅ Immich photos copied nightly to their own 150 GB disk on fastpool, deleted files kept 30 days (2026-10-04). → [maintenance](../runbooks/maintenance.md#nightly-immich-photo-copy)
 - ✅ Nightly database dumps of Vaultwarden, n8n, Immich and Supabase (`app-db-dumps.sh`, 04:40, 7 kept), carried to hddpool by the VM backup (2026-10-04). → [maintenance](../runbooks/maintenance.md#nightly-app-database-dumps)

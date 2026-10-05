@@ -105,8 +105,8 @@ Only when no VM backup exists. Order matters; each step depends on the previous.
 4. **Tailscale:** install from `pkgs.tailscale.com`, `tailscale up` (or `--auth-key=<YOUR_SECRET>`), confirm MagicDNS name resolves. Reinstate the watchdog: copy `tailscale-watchdog.sh` to `/usr/local/bin/`, `chmod +x`, add the `*/5` root cron line. Recreate the memory protection drop-ins for `tailscaled` and `ssh` ([networking §2.3](../architecture/networking-and-security.md#23-tailscale-mesh)).
 5. **Certificates, reverse proxy and tunnel:**
    - `snap install certbot && snap set certbot trust-plugin-with-root=ok && snap install certbot-dns-cloudflare` (use the snap only; do not also install apt `certbot`).
-   - Write `/root/.secrets/cloudflare.ini` with `dns_cloudflare_api_token = <YOUR_SECRET>` (`chmod 600`).
-   - Issue certificates: `certbot certonly --dns-cloudflare --dns-cloudflare-credentials /root/.secrets/cloudflare.ini -d example.com -d '*.example.com'`. One wildcard covers every vhost.
+   - Write `/etc/letsencrypt/cloudflare.ini` with `dns_cloudflare_api_token = <YOUR_SECRET>` (`chmod 600`).
+   - Issue certificates: `certbot certonly --dns-cloudflare --dns-cloudflare-credentials /etc/letsencrypt/cloudflare.ini -d example.com -d '*.example.com'`. One wildcard covers every vhost.
    - Add a deploy hook: `/etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh` containing `docker exec nginx-proxy nginx -s reload`.
    - nginx runs as a container: restore `~/docker/reverse-proxy` (compose + `conf.d/*.conf`). It is started in step 7.
    - **Cloudflare Tunnel:** install `cloudflared`, restore the tunnel token to `/etc/cloudflared/token` (`chmod 600`) and install the unit with `--token-file`. Ingress rules come back automatically from the Cloudflare dashboard. `systemctl enable --now cloudflared cloudflared-update.timer`.
