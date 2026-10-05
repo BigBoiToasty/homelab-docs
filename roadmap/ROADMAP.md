@@ -24,7 +24,7 @@ Things that can lose data or are one-line fixes.
 - [ ] **Media apps: decide whether to restore their pre-Sep-8 settings** from `/root/docker/media/config`. They were reset by the same path change as Vaultwarden. → [services/media.md](../services/media.md#settings-probably-lost-on-2026-09-08)
 - [ ] **n8n: publish the Google OAuth app** to *In production* if the Gmail credential breaks again after a week (it was reconnected 2026-09-26). → [services/ai-tools.md](../services/ai-tools.md#n8n)
 
-- [ ] **Copy the Immich photos (48 GB) to the SSD pool.** They exist only on hddpool. You: Proxmox → VM 100 → Hardware → Add → Hard Disk on **fastpool**, ~150 GB, **Backup unchecked** (so the nightly VM backup doesn't grow by 48 GB). Then Claude formats/mounts it and adds a nightly `rsync`. → [services/immich.md](../services/immich.md#backup-half-done)
+- [ ] **Reseat the 256 GB M.2 SSD in the Proxmox host.** It shows 77 connection (CRC) errors and 2241 power cycles in 2031 hours, a sign of a loose connection; the flash itself is healthy. Shut down, unplug, reseat, tighten the screw. Then recheck `smartctl -a /dev/sda | grep -iE "crc|power_cycle"` every few days: if the numbers still climb, plan a replacement. → [host-and-vm.md](../architecture/host-and-vm.md#proxmox-host)
 - [ ] **Off-site copy** of the photos and `/root/backups/app-dumps` (Backblaze B2 ≈ $0.30/month for 48 GB with restic, or the Windows desktop over Tailscale). Protects against fire/theft/surge, which take out both pools.
 - [ ] **Lock the public game servers.** Minecraft whitelist on (`ENABLE_WHITELIST`, `ENFORCE_WHITELIST`, `WHITELIST=`); Terraria server password; in the Playit dashboard, confirm only 25565 and 7777 are tunnelled. → [services/gaming.md](../services/gaming.md#who-can-reach-it)
 - [ ] **2FA on the Tailscale and Cloudflare logins**; review the 5 tailnet devices. These accounts control everything. → [networking-and-security.md §6](../architecture/networking-and-security.md#6-security-posture)
@@ -58,6 +58,7 @@ Things that can lose data or are one-line fixes.
 
 ## ✅ Done
 
+- ✅ Immich photos copied nightly to their own 150 GB disk on fastpool, deleted files kept 30 days (2026-10-04). → [maintenance](../runbooks/maintenance.md#nightly-immich-photo-copy)
 - ✅ Nightly database dumps of Vaultwarden, n8n, Immich and Supabase (`app-db-dumps.sh`, 04:40, 7 kept), carried to hddpool by the VM backup (2026-10-04). → [maintenance](../runbooks/maintenance.md#nightly-app-database-dumps)
 - ✅ Ollama's prompt cache capped at 1 GiB (`LLAMA_ARG_CACHE_RAM=1024`) and the container at 3 GiB, after it grew to ~5.5 GB and filled the VM (2026-10-03).
 - ✅ `tailscaled` and `sshd` have reserved memory and OOM protection; the Tailscale watchdog skips pointless restarts when memory is the problem (2026-10-03).
@@ -95,7 +96,7 @@ Things that can lose data or are one-line fixes.
 | 1.1 | Stirling-PDF | ✅ | Running, HTTPS. JVM tuning still pending |
 | 1.2 | Remote development (VS Code SSH) | ✅ | Root + password login still allowed |
 | 2.1 | Security & torrents (Gluetun) | ✅ | |
-| 2.2 | Media & backup (Jellyfin / Immich) | 🟠 | Both deployed; Immich database dumped nightly, **photos have no second copy**; media library empty |
+| 2.2 | Media & backup (Jellyfin / Immich) | 🟡 | Both deployed; Immich database and photos backed up nightly on the server, not off-site; media library empty |
 | 2.3 | Terraria server | ✅ | Running; nightly backup working |
 | 2.4 | Minecraft server (Paper) | ✅ | World restored 2026-09-26; backups fixed |
 | 2.5 | External gaming connectivity | ✅ | Duplicate Playit agent; no whitelist/password |
@@ -129,7 +130,7 @@ Things that were planned one way and are actually another. Re-check with the aud
 | n8n binding | loopback | `127.0.0.1` | `0.0.0.0` | Mid-term (LAN hardening) |
 | Reverse proxy | host nginx | host nginx | `nginx-proxy` container | ✅ docs updated |
 | Public ingress | — | assumed port-forward | tunnel (portfolio) + Playit only | ✅ verified |
-| Photos | Immich on `fastpool/photos` | absent | on `/mnt/tank`, no backup | Short-term + backlog |
+| Photos | Immich on `fastpool/photos` | absent | on `/mnt/tank`, no backup; 10-04: nightly copy on a fastpool disk | Backlog (move) + off-site |
 | Root disk | — | 102 GB, 88 % | 502 GB, 15 % | ✅ |
 | Log rotation | bounded | none | none | Mid-term |
 | Monitoring | full | 1 scrape job | unchanged | Mid-term |

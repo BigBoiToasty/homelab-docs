@@ -25,6 +25,7 @@ grep -h 'Finished Backup\|ERROR' /hddpool/backups/dump/vzdump-qemu-100-*.log | t
 | Time | Where | Job |
 |---|---|---|
 | 04:00 | VM (root cron) | Terraria world → `/mnt/tank/backups/terraria` |
+| 04:10 | VM (root cron) | `immich-photo-copy.sh`: `/mnt/tank/immich` (hddpool) → `/mnt/photo-copy/immich` (fastpool disk) ([below](#nightly-immich-photo-copy)) |
 | 04:30 | VM (`fstrim.timer`, override in `/etc/systemd/system/fstrim.timer.d/override.conf`) | Trim deleted blocks on `/` and `/mnt/tank`, so the backup skips them |
 | 04:40 | VM (root cron) | `app-db-dumps.sh`: Vaultwarden, n8n, Immich and Supabase databases → `/root/backups/app-dumps/<date>/` ([below](#nightly-app-database-dumps)) |
 | 05:00 | Proxmox host (Datacenter → Backup) | vzdump of VM 100's boot disk to `hddpool-backups`, keep 7; ~1–3 h |
@@ -47,6 +48,18 @@ grep -h 'Finished Backup\|ERROR' /hddpool/backups/dump/vzdump-qemu-100-*.log | t
 - Result log: `tail /var/log/app-db-dumps.log` should show `OK <size> in ...` for each night; `FAILED: <app>` names what broke.
 - **Not included:** the Immich photos (data disk, see the [roadmap](../roadmap/ROADMAP.md)) and Supabase's file storage `volumes/storage` (on the boot disk, so the VM backup covers it; empty so far).
 - Restoring from a dump: [disaster-recovery §3](disaster-recovery.md#3-per-service-data-recovery).
+
+### Nightly Immich photo copy
+
+`/usr/local/bin/immich-photo-copy.sh` (root cron, 04:10, since 2026-10-04) mirrors `/mnt/tank/immich` (data disk on **hddpool**) to `/mnt/photo-copy/immich` (its own 150 GB disk on **fastpool**). If either pool dies, the other still has the photos.
+
+- `rsync -a --delete` at low priority. Files deleted or changed in Immich aren't lost straight away: the old version moves to `/mnt/photo-copy/deleted/<date>/` and is removed after 30 days.
+- **Safety checks:** it refuses to run if `/mnt/photo-copy` isn't mounted (rsync would otherwise fill the boot disk) or if `/mnt/tank/immich/library` is missing or empty (`--delete` would otherwise wipe the copy). Both were tested.
+- First full copy 2026-10-04: 48 GB, 24,764 files, ~11 min, verified file-by-file. A normal night takes seconds.
+- Result log: `tail /var/log/immich-photo-copy.log` shows `OK <size> copied, <free> free` each night.
+- Space: 48 of 147 GB used. Grow the disk in Proxmox (VM 100 → Hardware → Disk Action → Resize), then `resize2fs /dev/sdc` in the VM.
+- Restore: stop Immich, `rsync -a /mnt/photo-copy/immich/ /mnt/tank/immich/`, restore the matching database dump ([disaster-recovery §3](disaster-recovery.md#3-per-service-data-recovery)), start Immich.
+- **Not off-site:** fire, theft or a surge would take both pools. That's the next step on the [roadmap](../roadmap/ROADMAP.md).
 
 Don't reboot the host or the VM between 05:00 and ~08:00 without checking whether the backup is still running (`pgrep -a vzdump` on the host). A running backup can be followed with `journalctl -fu <unit>` or in the web UI under the node's Tasks.
 

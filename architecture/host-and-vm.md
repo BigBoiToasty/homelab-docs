@@ -22,8 +22,10 @@ One VM runs all the Docker containers, rather than one VM or LXC per service. Th
 | Proxmox VE | 9.2.x (pve-manager 9.2.4 on 2026-09-16) |
 | ZFS `fastpool` | SSD pool, 8.72 TB. Datasets: `appdata`, `photos`, `vms`, and VM 100's boot disk |
 | ZFS `hddpool` | HDD pool, **~1.76 TB usable** (checked 2026-09-26; the earlier 2.72 TB was not the usable size). Holds `vm-100-disk-0`, the VM's 1.5 TB data disk. Datasets `backups` and `media` exist but are empty |
+| Drives (host `lsblk`, 2026-10-04) | 1 × 256 GB M.2 **SATA** SSD (probably the Proxmox system drive; not NVMe), 11 × 960 GB SAS SSDs (Samsung PM863-class and SanDisk), 3 × 1 TB WD HDDs. Pool membership not recorded yet (`zpool status`) |
+| M.2 SSD health (2026-10-04) | SMART PASSED, 0 reallocated / uncorrectable sectors, but **77 `UDMA_CRC_Error_Count`** and **2241 power cycles in 2031 power-on hours**: connection errors, not worn flash. Plan: reseat it, then recheck `smartctl -a /dev/sda` every few days; rising numbers after that mean replace it. `zpool status -x`: all pools healthy |
 | GPU | NVIDIA RTX 2060 SUPER 8 GB, PCIe passthrough to VM 100 (`vfio-pci` on the host) |
-| Backup jobs | VM 100 nightly at 05:00 to `hddpool-backups`, boot disk only (see [below](#vm-100-backup-working-since-2026-09-27)) |
+| Backup jobs | VM 100 nightly at 05:00 to `hddpool-backups`, boot disk only (see [below](#vm-100-backup-working-since-2026-09-27)). The photo-copy disk (`scsi2`) has *Backup* unchecked |
 
 Host RAM (checked 2026-09-26): 16 GB total. VM 11 GB since 2026-09-27 (was 12), ZFS read cache (ARC) capped at 1.5 GB (Proxmox default, 10 %) and using ~0.2 GB, the rest is Proxmox. The ARC is not competing with the VM, but there is no spare RAM to give the VM either. With the GPU passed through, all of the VM's RAM is locked on the host at all times; it can't be lent back.
 
@@ -97,7 +99,7 @@ During the good run the VM never paused, CPU steal peaked at 0.4 % and at least 
 | `cloudflared` | running | Cloudflare Tunnel: publishes the portfolio site |
 | `tailscaled` | running | Private network access to everything. Reserved memory + OOM protection since 2026-10-03 |
 | `ssh` | running | Remote login (root + password allowed; see security). Reserved memory + OOM protection since 2026-10-03 |
-| `cron` | running | Terraria backup (04:00), app database dumps (04:40), Tailscale watchdog and portfolio auto-update every 5 min |
+| `cron` | running | Terraria backup (04:00), Immich photo copy (04:10), app database dumps (04:40), Tailscale watchdog and portfolio auto-update every 5 min |
 | `certbot.timer` + `snap.certbot.renew.timer` | waiting | Certificate renewal. **Two installs**; keep the snap one |
 | `playit` | running | Game tunnel agent. **Duplicate** of the `playit` container |
 | `qemu-guest-agent` | running | Lets Proxmox freeze the disks for consistent backups |
@@ -122,6 +124,7 @@ flowchart LR
         B["vm-100-disk-0 (1.5 TB)<br/>on hddpool (HDD)"]
         E["hddpool/media"]
         F["hddpool/backups"]
+        P["VM 100 photo-copy disk (150 GB)<br/>on fastpool, not in the VM backup"]
         C["fastpool/appdata · photos"]
     end
     subgraph VM["VM 100"]
@@ -137,8 +140,12 @@ flowchart LR
         SDB --> T3["backups/ 1.3 GB (minecraft + terraria)"]
         SDB --> T4["media/ 72 KB (empty library)"]
     end
+        SDC["/dev/sdc ext4 150 GB → /mnt/photo-copy"]
+        SDC --> U1["immich/ 48 GB (nightly copy of /mnt/tank/immich)"]
+        SDC --> U2["deleted/ (files removed from Immich, kept 30 days)"]
     A --> SDA
     B --> SDB
+    P --> SDC
     E -. "not attached" .-> VM
     F -. "not attached" .-> VM
     C -. "not attached" .-> VM
@@ -146,6 +153,7 @@ flowchart LR
 
 - **Boot disk `sda` (502 GB, 15 % used):** OS, Docker, all databases, app configs, game worlds, swap. It grew from 102 GB after the first inspection, so the old "88 % full" problem is gone.
 - **Data disk `sdb` (1.5 TB, ext4 with `discard`, mounted at `/mnt/tank`, created 2026-09-24):** a virtual disk on **hddpool** (the HDDs), confirmed by the owner. Holds bulk files: Immich photos, Stirling data, media, and the in-VM backups.
+- **Photo-copy disk `sdc` (150 GB, ext4 with `discard`, mounted at `/mnt/photo-copy` by UUID with `nofail`, added 2026-10-04):** a virtual disk on **fastpool** (the SSDs) that holds only the nightly copy of the Immich photos ([nightly photo copy](../runbooks/maintenance.md#nightly-immich-photo-copy)). Its *Backup* box is unchecked in Proxmox, so the nightly VM backup doesn't grow by 48 GB.
 - **Not attached as datasets:** `hddpool/media`, `hddpool/backups`, `fastpool/photos`, `fastpool/appdata`. Media and backups already live on the HDDs through `sdb`, so that goal is met. There are no ZFS/NFS mounts inside the VM. `/mnt/media` and `/mnt/photos` are empty folders on the boot disk, prepared but never used.
 
 Which path belongs to which app: [services/README.md → Where data lives](../services/README.md#where-data-lives).

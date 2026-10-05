@@ -3,9 +3,9 @@
 **Last updated:** 2026-10-04
 
 **What changed:**
-- Nightly database dumps (04:40) for Vaultwarden, n8n, Immich and Supabase. The 05:00 VM backup carries them to hddpool. [Details](runbooks/maintenance.md#nightly-app-database-dumps).
-- The Immich photos (48 GB) are now the only important data without a second copy. Next step: a disk on the SSD pool for them ([roadmap](roadmap/ROADMAP.md)).
-- 2026-10-03: the VM ran out of memory because of Ollama's prompt cache; it's now capped, and Tailscale/SSH have reserved memory. [What happened](services/README.md#2026-10-03-the-vm-ran-out-of-memory).
+- The Immich photos (48 GB) are copied nightly at 04:10 to their own disk on the SSD pool, so a dead disk in either pool no longer loses them. Deleted photos are kept there for 30 days. [Details](runbooks/maintenance.md#nightly-immich-photo-copy).
+- Nightly database dumps (04:40) for Vaultwarden, n8n, Immich and Supabase. [Details](runbooks/maintenance.md#nightly-app-database-dumps).
+- The host's 256 GB M.2 SSD has 77 connection errors and far too many power cycles; the flash is healthy. Reseating it is on the [roadmap](roadmap/ROADMAP.md).
 
 ## Where to find what
 
@@ -74,7 +74,7 @@ Details: [architecture/networking-and-security.md](architecture/networking-and-s
 | Containers | 🟢 40/40 running | 0 OOM kills this boot |
 | Disk | 🟢 boot 15 %, data 3 % | 502 GB boot + 1.5 TB data disk |
 | Memory | 🟡 swap 3.0 / 8 GB, ~2.8 GB RAM available | Ran out on 2026-10-03; Ollama now capped. Watch swap over the next days |
-| Backups | 🟠 partial | Nightly VM boot-disk backup (05:00), app database dumps (04:40) and game worlds; **Immich photos have no second copy**; nothing off-site; no test restore yet |
+| Backups | 🟡 on-site only | Nightly VM backup (05:00), app database dumps (04:40), photo copy on fastpool (04:10), game worlds; **nothing off-site**; no test restore yet |
 | Public exposure | 🟡 small | Portfolio + game servers (game servers have no whitelist/password) |
 | GPU | 🟢 in use | Ollama (5.4 of 8 GB VRAM) and Jellyfin; driver 615 |
 | Updates | 🟡 50 OS updates pending | No automatic updates |
@@ -83,7 +83,7 @@ Details: [architecture/networking-and-security.md](architecture/networking-and-s
 ## 📌 Current Focus & Roadmap
 
 - 🔴 **In Progress:** Test-restore the VM 100 backup once; watch VM memory after the 2026-10-03 incident.
-- 🟠 **Urgent:** Second copy of the Immich photos on fastpool, then off-site; lock the public game servers (whitelist / password).
+- 🟠 **Urgent:** Reseat the host's M.2 SSD; lock the public game servers (whitelist / password); off-site copy of photos and dumps.
 - 🟡 **Next Up:** Tune Immich background jobs, security quick wins (2FA, `.env` permissions), Stirling-PDF heap-dump cleanup.
 - 📋 **Full List:** See [roadmap/ROADMAP.md](roadmap/ROADMAP.md) for detailed task tracking and future architecture plans.
 

@@ -13,7 +13,7 @@
 | VM 100 data disk (1.5 TB, `/dev/sdb` → `/mnt/tank`) | hddpool (`vm-100-disk-0`) | **none** (not in the vzdump job) | total loss | — |
 | Minecraft world | `/srv/games/minecraft/data/world` (boot disk) | mc-backup daily, 7 kept, on `/mnt/tank/backups` (other virtual disk, same VM) | ≤ 24 h | 10 min |
 | Terraria world | `/srv/games/terraria` (boot disk) | root cron 04:00 to `/mnt/tank/backups/terraria`, 7 days kept | ≤ 24 h | 10 min |
-| Immich library (47 GB) | `/mnt/tank/immich` (data disk) | **none** (data disk is not in the VM backup) | total loss | n/a |
+| Immich library (48 GB) | `/mnt/tank/immich` (data disk, hddpool) | nightly rsync (04:10) to `/mnt/photo-copy` on fastpool, deleted files kept 30 days (since 2026-10-04) | ≤ 24 h | ~15 min copy back |
 | Immich database | `~/docker/immich/postgres` (boot disk) | VM backup + nightly `pg_dumpall` (04:40, 7 kept, since 2026-10-04) | ≤ 24 h | 15 min from the dump |
 | Supabase Postgres | `~/docker/supabase-service/volumes/db/data` | VM backup + nightly `pg_dumpall` | ≤ 24 h | 15 min from the dump |
 | Vaultwarden vault | `/docker/media/config/vaultwarden` | VM backup + nightly SQLite copy + RSA key | ≤ 24 h | 5 min |
@@ -209,7 +209,7 @@ flowchart LR
     subgraph GUEST["VM 100"]
         MC["mc-backup (24 h)"]
         TC["terraria cron (04:00, fix path)"]
-        IM["immich library rsync (to add)"]
+        IM["immich-photo-copy.sh 04:10 (done):<br/>library → fastpool disk"]
         PG["app-db-dumps.sh 04:40 (done):<br/>Immich, Supabase, Vaultwarden, n8n"]
         CFG["config tar nightly (to add):<br/>/docker, /mnt/tank/*/configs,<br/>supabase volumes, /etc/nginx, /etc/letsencrypt, ~/docker/*.env"]
     end
@@ -233,7 +233,8 @@ flowchart LR
 - [ ] **Guest:** export `hddpool/backups` via NFS from PVE (or attach a second disk) and mount it at `/mnt/backups`; re-point `mc-backup` `/backups` and the Terraria cron there.
 - [x] **Guest:** fix the Terraria cron: `-C /srv/games/terraria` (done).
 - [x] **Guest:** nightly dumps of Supabase, Immich, Vaultwarden and n8n (`app-db-dumps.sh`, 04:40, to the boot disk so the VM backup carries them; 2026-10-04). → [maintenance](maintenance.md#nightly-app-database-dumps)
-- [ ] **Guest:** copy `/mnt/tank/immich` nightly to a fastpool disk; add a config tar (list in the diagram).
+- [x] **Guest:** copy `/mnt/tank/immich` nightly to a fastpool disk (`immich-photo-copy.sh`, 2026-10-04). → [maintenance](maintenance.md#nightly-immich-photo-copy)
+- [ ] **Guest:** add a config tar (list in the diagram).
 - [ ] **Guest:** add json-file log rotation to `daemon.json`; delete the 7.6 GB of Stirling heap dumps; run `docker system prune` monthly.
 - [ ] **Offsite:** PBS remote sync to a second PBS, or `restic`/`rclone` from `hddpool/backups` to object storage with a `<YOUR_SECRET>` repository key stored in the password manager (not on the VM).
 - [ ] **Secrets escrow:** copy every `.env`, `cloudflare.ini`, the Cloudflare Tunnel token, Playit secret, Mullvad key and the Vaultwarden RSA keys to the offsite store; without them a restored DB is unusable.
@@ -256,7 +257,7 @@ flowchart LR
 ### 5.4 Known gaps as of 2026-10-04
 
 1. The VM backup (nightly since 2026-09-27) covers the **boot disk only** and has never been test-restored. Supabase, Vaultwarden, n8n, the Immich database and the game worlds are on the boot disk, so they are now covered at VM level.
-2. The data disk (`/mnt/tank`) has no backup: the **Immich photo library (47 GB)**, the in-VM game backups and Stirling data. It sits on hddpool, the same pool as the VM backups.
+2. ~~The Immich photos had no backup~~ Since 2026-10-04 they're copied nightly to a fastpool disk. The rest of the data disk (in-VM game backups, Stirling data) still has no second copy; none of it is irreplaceable.
 3. ~~No app-level dumps~~ Done 2026-10-04: one database can now be restored from `/root/backups/app-dumps/` without restoring the whole VM. The dumps themselves have not been test-restored yet.
 4. No offsite copy of anything, including the secrets and the tunnel token needed to make a restore useful.
 5. `hddpool/media` is empty. (The data disk no longer reserves its full size: `refreservation=none`, checked 2026-09-28.)
