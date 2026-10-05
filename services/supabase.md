@@ -31,7 +31,7 @@ All paths are relative to `~/docker/supabase-service/` (68 MB, on the boot disk)
 
 ## Secrets
 
-`~/docker/supabase-service/.env` holds ~20 secret values (JWT secret, anon/service keys, Postgres password, dashboard password). It is mode `644` (readable by every user on the server); `chmod 600` it. The restored database only works with the **same** `.env`, so escrow it with the backups.
+`~/docker/supabase-service/.env` holds ~20 secret values (JWT secret, anon/service keys, Postgres password, dashboard password). It is mode `644`, which was left as is on purpose (only root and the owner log in; see [security finding 7](../architecture/networking-and-security.md#6-security-posture)). The restored database only works with the **same** `.env`, so escrow it with the backups.
 
 ## Backup
 

@@ -195,7 +195,7 @@ Only when no VM backup exists. Order matters; each step depends on the previous.
 | Terraria backup cron produces no new archive | Cron `-C` path no longer exists (happened 2026-09-24) | `ls /mnt/tank/backups/terraria`; `grep terraria /var/spool/cron/crontabs/root` | Point `-C` at `/srv/games/terraria` |
 | Public site cert expired | `certbot.timer` failed (Cloudflare token revoked) | `systemctl status certbot.timer`; `certbot renew --dry-run` | Renew token in `.env` + credentials file |
 | Tailscale offline, watchdog log growing | `tailscaled` hung, VM out of memory, or key expired | `tail /var/log/tailscale-watchdog.log` (lines saying "Skipping restart" mean a memory problem); `tailscale status`; `free -h` | Memory: find the process with the row above, or restart the VM from Proxmox if nothing responds. Hung: the watchdog restarts it. Key expired: `tailscale up` interactively or disable key expiry in the admin console |
-| Minecraft/Terraria unreachable from internet, LAN fine | Playit agent(s) down or fighting | `systemctl status playit`; `docker logs playit` | Run exactly one agent (both were running on 2026-09-25); check dashboard tunnel status |
+| Minecraft/Terraria unreachable from internet, LAN fine | Playit agent down, or two agents fighting (the host `playit.service` was disabled 2026-10-04; check it stayed off) | `systemctl is-active playit` (should be `inactive`); `docker logs playit` | Run exactly one agent (both were running on 2026-09-25); check dashboard tunnel status |
 | Supabase `auth`/`rest` return 401 after restore | `JWT_SECRET`/`ANON_KEY` mismatch with restored DB | compare `.env` with the values the DB roles were created with | Restore the matching `.env`, or re-run `roles.sql`/`jwt.sql` with the new secret |
 | `supabase-db` restart loop | Data dir permissions or PG major mismatch (17 ↔ 15 overlay) | `docker logs supabase-db` | Use the `pg17` compose overlay only with a 17 data dir; fix ownership to the container's postgres uid |
 | PBS backup of VM 100 reports "guest agent not running" | `qemu-guest-agent` inactive in guest / `agent: 0` in VM config | `qm agent 100 ping` | `qm set 100 --agent 1`; `systemctl enable --now qemu-guest-agent` |
@@ -235,7 +235,8 @@ flowchart LR
 - [x] **Guest:** nightly dumps of Supabase, Immich, Vaultwarden and n8n (`app-db-dumps.sh`, 04:40, to the boot disk so the VM backup carries them; 2026-10-04). → [maintenance](maintenance.md#nightly-app-database-dumps)
 - [x] **Guest:** copy `/mnt/tank/immich` nightly to a fastpool disk (`immich-photo-copy.sh`, 2026-10-04). → [maintenance](maintenance.md#nightly-immich-photo-copy)
 - [ ] **Guest:** add a config tar (list in the diagram).
-- [ ] **Guest:** add json-file log rotation to `daemon.json`; delete the 7.6 GB of Stirling heap dumps; run `docker system prune` monthly.
+- [x] **Guest:** json-file log rotation in `daemon.json` (2026-10-04, active from the next Docker start); Stirling heap dumps gone and turned off (2026-10-04).
+- [ ] **Guest:** run `docker system prune` monthly.
 - [ ] **Offsite:** PBS remote sync to a second PBS, or `restic`/`rclone` from `hddpool/backups` to object storage with a `<YOUR_SECRET>` repository key stored in the password manager (not on the VM).
 - [ ] **Secrets escrow:** copy every `.env`, `cloudflare.ini`, the Cloudflare Tunnel token, Playit secret, Mullvad key and the Vaultwarden RSA keys to the offsite store; without them a restored DB is unusable.
 - [ ] **Host record:** save `qm config 100` output alongside the `/etc/pve` backup. (The 1.5 TB data disk is `hddpool/vm-100-disk-0`, confirmed 2026-09-26.)

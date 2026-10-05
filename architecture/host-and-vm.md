@@ -101,7 +101,7 @@ During the good run the VM never paused, CPU steal peaked at 0.4 % and at least 
 | `ssh` | running | Remote login (root + password allowed; see security). Reserved memory + OOM protection since 2026-10-03 |
 | `cron` | running | Terraria backup (04:00), Immich photo copy (04:10), app database dumps (04:40), Tailscale watchdog and portfolio auto-update every 5 min |
 | `certbot.timer` + `snap.certbot.renew.timer` | waiting | Certificate renewal. **Two installs**; keep the snap one |
-| `playit` | running | Game tunnel agent. **Duplicate** of the `playit` container |
+| `playit` | **disabled** (2026-10-04) | Old host copy of the Playit agent; the `playit` container is the only agent now |
 | `qemu-guest-agent` | running | Lets Proxmox freeze the disks for consistent backups |
 | `nginx` (host) | disabled | Old; replaced by the `nginx-proxy` container |
 | `avahi-daemon`, `rpcbind` | running | Not needed; can be disabled |
@@ -136,7 +136,7 @@ flowchart LR
         SDA --> R5["/swapfile 8 GB"]
         SDB["/dev/sdb ext4 1.5 TB → /mnt/tank (~56 GB used)"]
         SDB --> T1["immich/ 47 GB (photo library)"]
-        SDB --> T2["stirling-pdf/ 7.6 GB (heap dumps)"]
+        SDB --> T2["stirling-pdf/ (< 1 MB, settings)"]
         SDB --> T3["backups/ 1.3 GB (minecraft + terraria)"]
         SDB --> T4["media/ 72 KB (empty library)"]
     end

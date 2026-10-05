@@ -78,7 +78,7 @@ The VM has two disks ([details](../architecture/host-and-vm.md#disks-and-storage
 | Game backups | `/mnt/tank/backups/{minecraft,terraria}` | data disk |
 | Media app configs | `/docker/media/config/*` | boot disk |
 | Media library (empty) | `/mnt/tank/media` | data disk |
-| Stirling settings + 7.6 GB of heap dumps | `/mnt/tank/stirling-pdf/extraConfigs` | data disk |
+| Stirling settings (< 1 MB) | `/mnt/tank/stirling-pdf/extraConfigs` | data disk |
 | Ollama models (re-downloadable) | `/docker/appdata/ollama` | boot disk |
 | Named volumes (Grafana, Prometheus, Immich ML cache, Supabase config, Deno cache) | `/var/lib/docker/volumes` | boot disk |
 | Docker socket | `/var/run/docker.sock` | mounted by dozzle (ro) and homepage (**rw**) |
@@ -87,7 +87,7 @@ To regenerate this table from the live system: the audit script's "Where contain
 
 ## Docker engine settings
 
-- `/etc/docker/daemon.json` only registers the `nvidia` runtime. **Logs are not rotated**: every container logs with `max-size: none`. Add `"log-driver":"json-file","log-opts":{"max-size":"10m","max-file":"3"}`, then recreate the containers.
+- `/etc/docker/daemon.json` registers the `nvidia` runtime and, since 2026-10-04, rotates logs: `json-file` with `max-size 10m`, `max-file 3` (backup: `daemon.json.bak-20261004`). Docker reads the file only when it starts, and the setting applies only to containers created after that. So it takes effect at the next VM reboot or `systemctl restart docker`, and each container gets it the next time it's recreated (`docker compose up -d` after a change or `pull`). The largest container log was 118 MB when this was set.
 - NVIDIA container toolkit 1.20.1, driver 615. Containers get the GPU through the toolkit. If it's missing, GPU containers fail to start with `could not select device driver "nvidia"` ([ai-tools](ai-tools.md#ollama-on-the-gpu)).
 - 38 images (38.1 GB, nothing to prune). Named volumes use 1.05 GB.
 - Only Supabase and Immich pin image versions; everything else uses `:latest`, so updates happen whenever you `docker compose pull`.

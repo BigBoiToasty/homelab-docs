@@ -93,14 +93,16 @@ flowchart TB
 
 ### 2.4 Game traffic via Playit.gg
 
-Playit establishes an *outbound* UDP session to the relay, so no router port-forward is needed for `25565/tcp` (Minecraft) or `7777/tcp+udp` (Terraria). **Two agents still run:**
+Playit establishes an *outbound* UDP session to the relay, so no router port-forward is needed for `25565/tcp` (Minecraft) or `7777/tcp+udp` (Terraria). One agent carries every tunnel on the account, so both games share it.
+
+**Two agents used to run** with the **same secret**, so Playit saw one agent logging in from two places. They knocked each other off (`timeout waiting for register response`, `failed to authenticate`, `control session expired; reconnecting`, last seen 2026-10-04 15:28), which players see as random disconnects:
 
 | Agent | Where | State (2026-09-25) |
 |---|---|---|
 | `playit.service` (systemd, host) | `/opt/playit/playitd`, secret in `/etc/playit/playit.toml` | active, enabled, running since boot |
 | `playit` container (`gaming` project) | `network_mode: host`, secret inline in the compose file | running since 2026-09-24 |
 
-Both appear in `ss` as `playitd` with 8 ephemeral UDP sockets between them. Keep one (the container is the documented path) and `systemctl disable --now playit`.
+**Fixed 2026-10-04:** `systemctl disable --now playit`; the container is the only agent. The host install (`/opt/playit`, `/etc/playit`) is still on disk but disabled. Don't re-enable it.
 
 ## 3. Gluetun VPN network-mode sharing
 
@@ -226,10 +228,10 @@ Internal-only (exposed, not published): node_exporter `9100`, supabase-db `5432`
 | 4 | Low | n8n regressed from `127.0.0.1:5678` to `0.0.0.0:5678`, bypassing nginx/TLS on the LAN | Restore `"127.0.0.1:5678:5678"`; nginx reaches it via the host gateway either way. |
 | 5 | Medium | `homepage` mounts the Docker socket **read-write** | Add `:ro`. |
 | 6 | Medium | Secrets written literally in compose files: Gluetun `WIREGUARD_PRIVATE_KEY` (`media`), Minecraft/mc-backup `RCON_PASSWORD` and Playit `SECRET_KEY` (`gaming`) | Move to each project's `.env`, reference as `${VAR}`. |
-| 7 | Medium | All `.env` files are mode `644` (world-readable), including Supabase's ~20 key-material values | `chmod 600` every `.env` under `~/docker` and `~/Mush`. |
+| 7 | Low (accepted 2026-10-04) | All `.env` files are mode `644` (world-readable), including Supabase's ~20 key-material values | Left as is (owner decision 2026-10-04): `644` only matters for other non-root accounts, and the only one is the owner's own; everyone else who logs in is root anyway. Revisit if other people get accounts. |
 | 8 | Medium | Vaultwarden `SIGNUPS_ALLOWED=true` on a LAN/tailnet-reachable port | Set `false` once accounts exist. |
 | 9 | Medium | 40 pending apt updates, no `unattended-upgrades`; cloudflared outdated with its update timer disabled | `apt install unattended-upgrades`; `systemctl enable --now cloudflared-update.timer`. |
-| 10 | Medium | Duplicate Playit agents (host + container) | `systemctl disable --now playit`. |
+| 10 | ~~Medium~~ Fixed | ~~Duplicate Playit agents (host + container)~~ | Host service disabled 2026-10-04. |
 | 11 | Low | Two certbot installs with two renewal timers, no nginx reload hook | Keep one; add a deploy hook that reloads `nginx-proxy`. |
 | 12 | Low | avahi and rpcbind listening with no consumer | `systemctl disable --now avahi-daemon rpcbind`. |
 | 13 | Medium | Minecraft is public via Playit with `online-mode=true` but **no whitelist** (0 entries, `enforce-whitelist=false`) and no ops | Set `ENABLE_WHITELIST=true`, `ENFORCE_WHITELIST=true` and `WHITELIST=<names>` in the `gaming` compose, then recreate. |

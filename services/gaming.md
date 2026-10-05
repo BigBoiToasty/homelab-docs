@@ -10,7 +10,7 @@
 | minecraft | `itzg/minecraft-server:latest` | 25565 (game), 25575 (RCON) | 5 GiB | `/srv/games/minecraft/data → /data` | `TYPE=PAPER`, `USE_AIKAR_FLAGS`, `INIT_MEMORY=1G`, `MAX_MEMORY=4G`, `ENABLE_RCON`; healthy. Everything (server files **and** `world/`) is inside `data/`; nothing else lives in `/srv/games/minecraft`. |
 | mc-backup | `itzg/mc-backup:latest` | — | 512 MiB | reads `/srv/games/minecraft/data` (ro), writes `/mnt/tank/backups/minecraft` | Every 24 h, prunes archives older than 7 days. Reads the same folder as the server (fixed 2026-09-26). |
 | terraria | `brammys/terraria:latest` | 7777 tcp+udp | 2 GiB | `/srv/games/terraria/Worlds`, `/srv/games/terraria/configs` | Backed up nightly by cron. |
-| playit | `ghcr.io/playit-cloud/playit-agent:latest` | host network | none | — | `SECRET_KEY` written literally in compose. **A second agent also runs on the host** (`playit.service`). |
+| playit | `ghcr.io/playit-cloud/playit-agent:latest` | host network | none | — | `SECRET_KEY` written literally in compose. The only Playit agent since 2026-10-04; the duplicate host service is disabled ([why](../architecture/networking-and-security.md#24-game-traffic-via-playitgg)). |
 
 ## Who can reach it
 

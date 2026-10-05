@@ -28,9 +28,7 @@ Things that can lose data or are one-line fixes.
 - [ ] **Off-site copy** of the photos and `/root/backups/app-dumps` (Backblaze B2 ≈ $0.30/month for 48 GB with restic, or the Windows desktop over Tailscale). Protects against fire/theft/surge, which take out both pools.
 - [ ] **Lock the public game servers.** Minecraft whitelist on (`ENABLE_WHITELIST`, `ENFORCE_WHITELIST`, `WHITELIST=`); Terraria server password; in the Playit dashboard, confirm only 25565 and 7777 are tunnelled. → [services/gaming.md](../services/gaming.md#who-can-reach-it)
 - [ ] **2FA on the Tailscale and Cloudflare logins**; review the 5 tailnet devices. These accounts control everything. → [networking-and-security.md §6](../architecture/networking-and-security.md#6-security-posture)
-- [ ] **`chmod 600` every `.env`** under `~/docker` and `~/Mush` (they're world-readable now). Scope the Cloudflare API token to DNS-edit on one zone.
-- [ ] **Delete Stirling-PDF heap dumps** (frees 7.6 GB) and set `JAVA_CUSTOM_OPTS=-Xms64m -Xmx512m -XX:-HeapDumpOnOutOfMemoryError`. → [services/ai-tools.md](../services/ai-tools.md#stirling-pdf-what-the-76-gb-really-is)
-- [ ] **Remove the duplicate Playit agent:** `systemctl disable --now playit` (keep the container).
+- [ ] **Scope the Cloudflare API token** to DNS-edit on one zone.
 
 ## 🟡 Mid-term infrastructure upgrades
 
@@ -38,7 +36,6 @@ Things that can lose data or are one-line fixes.
 - [ ] **Local DNS with Pi-hole or AdGuard Home** (optional). Today the public DNS records point at the Tailscale IP, which works but shows your tailnet address to anyone who looks it up. A local DNS server (or Tailscale split DNS) could answer `*.example.com` privately instead.
 - [ ] **Finish monitoring.** Prometheus + Grafana + Uptime-Kuma already run, but only VM-level metrics exist and there are no alerts. Add cAdvisor (per-container RAM/CPU) and alerts for swap > 80 %, disk > 85 %, hddpool > 80 % (it's overcommitted once the backup job exists), unhealthy containers and backups older than 26 h. → [services/management.md](../services/management.md#monitoring-gaps)
 - [ ] **Optional: Immich machine learning on the GPU** (`-cuda` image). It would have to share the 8 GB with Ollama; lower Ollama's keep-alive to `20m` first. → [services/ai-tools.md](../services/ai-tools.md#ollama-on-the-gpu)
-- [ ] **Docker log rotation** in `/etc/docker/daemon.json` (`max-size 10m`, `max-file 3`). → [services/README.md](../services/README.md#docker-engine-settings)
 - [ ] **Patching:** install `unattended-upgrades` (50 updates pending), enable `cloudflared-update.timer`, and `docker compose pull` monthly, starting with the internet-facing ones (portfolio nginx, Minecraft, Playit).
 - [ ] **LAN hardening (optional, if you ever share your network):** bind admin ports (Ollama 11434, Postgres 5432/6543, RCON 25575, dashboards) to `127.0.0.1` or the Tailscale IP, like VNC. Also: n8n back to `127.0.0.1:5678`, Homepage's Docker socket to `:ro`, SSH keys instead of the root password.
 - [ ] **Start VNC at boot:** turn `vnc-tailscale.sh` (and Xvfb) into systemd services.
@@ -58,6 +55,10 @@ Things that can lose data or are one-line fixes.
 
 ## ✅ Done
 
+- ✅ Duplicate Playit agent removed: the host `playit.service` and the container shared one secret and kept knocking each other off; only the container runs now (2026-10-04).
+- ✅ Stirling-PDF heap dumps gone and turned off (`JAVA_CUSTOM_OPTS=-XX:-HeapDumpOnOutOfMemoryError`, 2026-10-04).
+- ✅ Docker log rotation set in `daemon.json` (10 MB × 3), active from the next Docker start / container recreate (2026-10-04).
+- ⚪ Decided **not** to `chmod 600` the `.env` files: only root and the owner log in (2026-10-04).
 - ✅ Immich photos copied nightly to their own 150 GB disk on fastpool, deleted files kept 30 days (2026-10-04). → [maintenance](../runbooks/maintenance.md#nightly-immich-photo-copy)
 - ✅ Nightly database dumps of Vaultwarden, n8n, Immich and Supabase (`app-db-dumps.sh`, 04:40, 7 kept), carried to hddpool by the VM backup (2026-10-04). → [maintenance](../runbooks/maintenance.md#nightly-app-database-dumps)
 - ✅ Ollama's prompt cache capped at 1 GiB (`LLAMA_ARG_CACHE_RAM=1024`) and the container at 3 GiB, after it grew to ~5.5 GB and filled the VM (2026-10-03).
@@ -99,7 +100,7 @@ Things that can lose data or are one-line fixes.
 | 2.2 | Media & backup (Jellyfin / Immich) | 🟡 | Both deployed; Immich database and photos backed up nightly on the server, not off-site; media library empty |
 | 2.3 | Terraria server | ✅ | Running; nightly backup working |
 | 2.4 | Minecraft server (Paper) | ✅ | World restored 2026-09-26; backups fixed |
-| 2.5 | External gaming connectivity | ✅ | Duplicate Playit agent; no whitelist/password |
+| 2.5 | External gaming connectivity | ✅ | One Playit agent since 2026-10-04; no whitelist/password |
 | 2.6 | System monitoring | 🟡 | Running; no container metrics or alerts |
 | 3.1 | Headless game host (Steam/Wolf) | ⚪ | |
 | 3.2 | VRAM balancing (Ollama) | 🟡 | Ollama on the GPU (5.4 of 8 GB); no balancing with other GPU users yet |
@@ -118,21 +119,21 @@ Things that were planned one way and are actually another. Re-check with the aud
 
 | Item | Design | 2026-09-16 | 2026-09-25 | Action |
 |---|---|---|---|---|
-| Stirling-PDF memory | 512 MiB, `-Xmx256m` | 1 GiB, defaults, stopped | 1 GiB, defaults, running; 33 heap dumps show repeated OOMs | Short-term |
+| Stirling-PDF memory | 512 MiB, `-Xmx256m` | 1 GiB, defaults, stopped | 1 GiB, defaults, running; 33 heap dumps show repeated OOMs; 10-04: dumps gone and turned off | Optional |
 | Ollama limits | RAM/VRAM caps | no cap, CPU | 09-26: on the GPU, keep-alive -1, no RAM cap; 10-03: 3 GiB cap, prompt cache 1 GiB | ✅ |
 | Chrome desktop | container, 1.5 GiB | native, VNC open | native, VNC tailnet-only | Backlog |
 | Media library | `hddpool/media` | empty dir on root disk | empty dir on data disk | Mid-term |
 | Backups | `hddpool/backups` + PBS | same disk as data | inside the VM; 09-27: vzdump of the boot disk to `hddpool-backups`, nightly 05:00; data disk not included; 10-04: nightly app DB dumps | In progress |
 | Minecraft data path | one folder | `/srv/games/minecraft` | 09-24: server moved to `data/`, world left behind; 09-26: fixed | ✅ |
 | Terraria backup | nightly | working | 09-26: working again | ✅ |
-| Playit | one agent | two | two | Short-term |
+| Playit | one agent | two | two; 10-04: one (container) | ✅ |
 | qBittorrent config | `/docker/media/config/qbittorrent` | under `/home/<user>` | unchanged | Backlog |
 | n8n binding | loopback | `127.0.0.1` | `0.0.0.0` | Mid-term (LAN hardening) |
 | Reverse proxy | host nginx | host nginx | `nginx-proxy` container | ✅ docs updated |
 | Public ingress | — | assumed port-forward | tunnel (portfolio) + Playit only | ✅ verified |
 | Photos | Immich on `fastpool/photos` | absent | on `/mnt/tank`, no backup; 10-04: nightly copy on a fastpool disk | Backlog (move) + off-site |
 | Root disk | — | 102 GB, 88 % | 502 GB, 15 % | ✅ |
-| Log rotation | bounded | none | none | Mid-term |
+| Log rotation | bounded | none | none; 10-04: set in `daemon.json` (from next Docker start) | ✅ |
 | Monitoring | full | 1 scrape job | unchanged | Mid-term |
 | Guest RAM | 12 GB | swap 5.7 GiB | swap 7.9 GiB (full); 09-26: 5.1 GiB, not thrashing; 09-27: lowered to 11 GB, 4–5 GiB cold swap, no active swapping; 10-03: RAM + swap full, VM unreachable, Ollama capped afterwards | Watch |
 | Guest agent | on | inactive | 09-26: on, both sides | ✅ |

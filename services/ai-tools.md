@@ -76,22 +76,19 @@ Remember: `docker restart ollama` does **not** apply compose changes. Use `docke
 
 Still open: `OLLAMA_MAX_LOADED_MODELS=1`.
 
-## Stirling-PDF: what the 7.6 GB really is
+## Stirling-PDF heap dumps (cleared)
 
-The earlier docs called the 7.6 GB under `/mnt/tank/stirling-pdf` OCR training data. It isn't: `trainingData` is empty. The space is **33 Java heap dumps (~248 MB each)** written 2026-09-12 → 09-14. Each dump means Stirling ran out of heap memory, crashed and restarted. The default heap is ~256 MiB (a quarter of the 1 GiB cap), and that proved too small. No new dumps have appeared since 2026-09-14.
+The earlier docs called the 7.6 GB under `/mnt/tank/stirling-pdf` OCR training data. It isn't: `trainingData` is empty. The space is **33 Java heap dumps (~248 MB each)** written 2026-09-12 → 09-14. Each dump means Stirling ran out of heap memory, crashed and restarted. The default heap is ~256 MiB (a quarter of the 1 GiB cap), and that proved too small. No new dumps have appeared since 2026-09-14. **By 2026-10-04 the folder was empty** (all of `/mnt/tank/stirling-pdf` is under 1 MB), most likely cleared when the container was updated or recreated.
 
 | | Intended | Actual |
 |---|---|---|
 | Container limit | 512 MiB | 1 GiB |
-| Java heap | `-Xms64m -Xmx256m` | image default (~256 MiB), heap dumps on crash |
+| Java heap | `-Xms64m -Xmx256m` | image default (~256 MiB); heap dumps **off** since 2026-10-04 |
 | State | running | running, healthy, ~370 MiB |
 
-Fix:
+Done 2026-10-04: `JAVA_CUSTOM_OPTS=-XX:-HeapDumpOnOutOfMemoryError` in the compose file. The image turns dumps on in `_JVM_OPTS`; its start script appends `JAVA_CUSTOM_OPTS` afterwards, and Java uses the last value, so dumps are off (checked in the running process). Stirling still exits and restarts on an out-of-memory error (`ExitOnOutOfMemoryError`), it just no longer leaves a 250 MB file each time.
 
-1. Delete `/mnt/tank/stirling-pdf/extraConfigs/heap_dumps/*.hprof` (frees 7.6 GB).
-2. Set `JAVA_CUSTOM_OPTS=-Xms64m -Xmx512m -XX:-HeapDumpOnOutOfMemoryError`.
-3. Keep the 1 GiB cap, which leaves room for LibreOffice/Tesseract.
-4. Add `stop_grace_period: 30s`.
+Optional, not done: raise the heap with `-Xmx512m` in the same variable if crashes come back (the 1 GiB cap leaves room), and add `stop_grace_period: 30s`.
 
 Because Stirling has no login, anyone on the tailnet or LAN can use it. That's fine while you're the only user.
 

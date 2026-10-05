@@ -3,9 +3,11 @@
 **Last updated:** 2026-10-04
 
 **What changed:**
-- The Immich photos (48 GB) are copied nightly at 04:10 to their own disk on the SSD pool, so a dead disk in either pool no longer loses them. Deleted photos are kept there for 30 days. [Details](runbooks/maintenance.md#nightly-immich-photo-copy).
-- Nightly database dumps (04:40) for Vaultwarden, n8n, Immich and Supabase. [Details](runbooks/maintenance.md#nightly-app-database-dumps).
-- The host's 256 GB M.2 SSD has 77 connection errors and far too many power cycles; the flash is healthy. Reseating it is on the [roadmap](roadmap/ROADMAP.md).
+- Only one Playit agent runs now. Two copies with the same key kept knocking each other off, which can drop players from the game servers. [Details](architecture/networking-and-security.md#24-game-traffic-via-playitgg).
+- Stirling-PDF no longer writes heap dumps when it crashes (the old 7.6 GB of them were already gone).
+- Docker container logs are capped at 3 × 10 MB, from the next Docker restart.
+- The Immich photos are copied nightly to their own disk on the SSD pool, and the app databases are dumped nightly. [Details](runbooks/maintenance.md#nightly-immich-photo-copy).
+- The host's 256 GB M.2 SSD needs reseating (connection errors, flash healthy). See the [roadmap](roadmap/ROADMAP.md).
 
 ## Where to find what
 
@@ -84,7 +86,7 @@ Details: [architecture/networking-and-security.md](architecture/networking-and-s
 
 - 🔴 **In Progress:** Test-restore the VM 100 backup once; watch VM memory after the 2026-10-03 incident.
 - 🟠 **Urgent:** Reseat the host's M.2 SSD; lock the public game servers (whitelist / password); off-site copy of photos and dumps.
-- 🟡 **Next Up:** Tune Immich background jobs, security quick wins (2FA, `.env` permissions), Stirling-PDF heap-dump cleanup.
+- 🟡 **Next Up:** 2FA on the Tailscale and Cloudflare logins, test-restore the VM backup, tune Immich background jobs.
 - 📋 **Full List:** See [roadmap/ROADMAP.md](roadmap/ROADMAP.md) for detailed task tracking and future architecture plans.
 
 ## Keeping these docs current
