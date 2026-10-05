@@ -26,9 +26,9 @@
 
 Afterwards `SIGNUPS_ALLOWED` was set to `false` (compose backup: `docker-compose.yml.bak-20260925`).
 
-This is the highest-value data in the stack, and it has no backup.
+This is the highest-value data in the stack. **Backed up nightly since 2026-10-04:** `db.sqlite3` (via `sqlite3 .backup`) and `rsa_key.pem` go to `/root/backups/app-dumps/<date>/` at 04:40, and the 05:00 VM backup copies them to hddpool ([nightly app dumps](../runbooks/maintenance.md#nightly-app-database-dumps)). Without the RSA key, every client must log in again. There is no `attachments/` folder yet; if you start using attachments, add it to the script.
 
-- Back up the `/docker/media/config/vaultwarden` folder: `db.sqlite3`, `attachments/`, and the `rsa_key*` files. Without the RSA keys, every client must log in again. For a safe live copy: `sqlite3 db.sqlite3 ".backup out.db"`.
+- Still open: an off-site copy.
 
 ## Monitoring gaps
 

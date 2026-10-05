@@ -97,7 +97,7 @@ During the good run the VM never paused, CPU steal peaked at 0.4 % and at least 
 | `cloudflared` | running | Cloudflare Tunnel: publishes the portfolio site |
 | `tailscaled` | running | Private network access to everything. Reserved memory + OOM protection since 2026-10-03 |
 | `ssh` | running | Remote login (root + password allowed; see security). Reserved memory + OOM protection since 2026-10-03 |
-| `cron` | running | Terraria backup (04:00), Tailscale watchdog and portfolio auto-update every 5 min |
+| `cron` | running | Terraria backup (04:00), app database dumps (04:40), Tailscale watchdog and portfolio auto-update every 5 min |
 | `certbot.timer` + `snap.certbot.renew.timer` | waiting | Certificate renewal. **Two installs**; keep the snap one |
 | `playit` | running | Game tunnel agent. **Duplicate** of the `playit` container |
 | `qemu-guest-agent` | running | Lets Proxmox freeze the disks for consistent backups |

@@ -65,7 +65,7 @@ The caps (Minecraft 5 G, Immich 4 G + 2 G, Terraria 2 G, Ollama 3 G, n8n 1 G, St
 
 ## Where data lives
 
-The VM has two disks ([details](../architecture/host-and-vm.md#disks-and-storage)). **Bold** = irreplaceable, with no backup yet.
+The VM has two disks ([details](../architecture/host-and-vm.md#disks-and-storage)). **Bold** = irreplaceable. Everything on the boot disk is in the nightly VM backup, and the bold databases are also dumped nightly ([app dumps](../runbooks/maintenance.md#nightly-app-database-dumps)). The Immich photos still have no second copy.
 
 | Data | Path | Disk |
 |---|---|---|

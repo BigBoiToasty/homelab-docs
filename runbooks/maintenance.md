@@ -26,10 +26,27 @@ grep -h 'Finished Backup\|ERROR' /hddpool/backups/dump/vzdump-qemu-100-*.log | t
 |---|---|---|
 | 04:00 | VM (root cron) | Terraria world → `/mnt/tank/backups/terraria` |
 | 04:30 | VM (`fstrim.timer`, override in `/etc/systemd/system/fstrim.timer.d/override.conf`) | Trim deleted blocks on `/` and `/mnt/tank`, so the backup skips them |
+| 04:40 | VM (root cron) | `app-db-dumps.sh`: Vaultwarden, n8n, Immich and Supabase databases → `/root/backups/app-dumps/<date>/` ([below](#nightly-app-database-dumps)) |
 | 05:00 | Proxmox host (Datacenter → Backup) | vzdump of VM 100's boot disk to `hddpool-backups`, keep 7; ~1–3 h |
 | ~06:00–07:00 | VM (`apt-daily-upgrade.timer`, randomized) | Package list refresh / upgrades |
 | every 24 h from container start | VM (`mc-backup`) | Minecraft world → `/mnt/tank/backups/minecraft` |
 | every 5 min | VM (root cron) | Portfolio: pull from GitHub and rebuild if `main` changed ([web-apps](../services/web-apps.md#updating)) |
+
+### Nightly app database dumps
+
+`/usr/local/bin/app-db-dumps.sh` (root cron, 04:40, since 2026-10-04) writes clean copies of the irreplaceable databases to the **boot disk**. The 05:00 VM backup then carries them to hddpool, a different physical pool. The VM backup alone copies the databases as live files, which usually restores fine but isn't guaranteed; these dumps are.
+
+| File in `/root/backups/app-dumps/<date>/` | Made with | Checked by the script |
+|---|---|---|
+| `vaultwarden.sqlite3`, `vaultwarden-rsa_key.pem` | `sqlite3 .backup` (safe while running) | `pragma integrity_check` |
+| `n8n.sqlite`, `n8n-config` (encryption key) | `sqlite3 .backup` | `pragma integrity_check` |
+| `immich.sql.gz` | `pg_dumpall -U postgres --clean --if-exists` in `immich_postgres` | ends with "cluster dump complete" |
+| `supabase.sql.gz` | `pg_dumpall -U supabase_admin --clean --if-exists` in `supabase-db` (`postgres` isn't a superuser in Supabase) | same |
+
+- ~62 MB per night, ~10 s. Folders older than 7 days are deleted. Everything is mode `600`/`700` (root only), because it contains the vault and the n8n key.
+- Result log: `tail /var/log/app-db-dumps.log` should show `OK <size> in ...` for each night; `FAILED: <app>` names what broke.
+- **Not included:** the Immich photos (data disk, see the [roadmap](../roadmap/ROADMAP.md)) and Supabase's file storage `volumes/storage` (on the boot disk, so the VM backup covers it; empty so far).
+- Restoring from a dump: [disaster-recovery §3](disaster-recovery.md#3-per-service-data-recovery).
 
 Don't reboot the host or the VM between 05:00 and ~08:00 without checking whether the backup is still running (`pgrep -a vzdump` on the host). A running backup can be followed with `journalctl -fu <unit>` or in the web UI under the node's Tasks.
 

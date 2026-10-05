@@ -1,7 +1,7 @@
 # Supabase (`supabase`): backend platform
 
 > Compose project `~/docker/supabase-service` (the official self-host repo) · network `supabase_default` · last verified 2026-09-25.
-> **In one line:** a self-hosted Firebase alternative (Postgres database, auth, REST API, storage, realtime) used as the backend for the Mush app. The database has **no backup**.
+> **In one line:** a self-hosted Firebase alternative (Postgres database, auth, REST API, storage, realtime) used as the backend for the Mush app. The database is dumped nightly (since 2026-10-04).
 
 ## Containers
 
@@ -33,11 +33,8 @@ All paths are relative to `~/docker/supabase-service/` (68 MB, on the boot disk)
 
 `~/docker/supabase-service/.env` holds ~20 secret values (JWT secret, anon/service keys, Postgres password, dashboard password). It is mode `644` (readable by every user on the server); `chmod 600` it. The restored database only works with the **same** `.env`, so escrow it with the backups.
 
-## Backup (not set up yet)
+## Backup
 
-```bash
-docker exec supabase-db pg_dumpall -U postgres | gzip > /mnt/backups/supabase/supabase-$(date +%F).sql.gz
-tar czf /mnt/backups/supabase/storage-$(date +%F).tgz -C ~/docker/supabase-service/volumes storage
-```
+Since 2026-10-04, `pg_dumpall -U supabase_admin` runs nightly at 04:40 into `/root/backups/app-dumps/<date>/supabase.sql.gz` ([nightly app dumps](../runbooks/maintenance.md#nightly-app-database-dumps)). Use `supabase_admin`, not `postgres`: in Supabase, `postgres` isn't a superuser and can't dump everything. The tables were still empty on 2026-10-04 (47 KB dump).
 
-Database rows reference files in `volumes/storage`, so back up both together. Restore steps and gotchas (JWT/role mismatches): [runbooks/disaster-recovery.md §3](../runbooks/disaster-recovery.md#3-per-service-data-recovery).
+Database rows reference files in `volumes/storage`. That folder isn't in the dump, but it's on the boot disk, so the nightly VM backup covers it. If you start storing files, add a `tar` of it to the script. Restore steps and gotchas (JWT/role mismatches): [runbooks/disaster-recovery.md §3](../runbooks/disaster-recovery.md#3-per-service-data-recovery).

@@ -7,7 +7,7 @@ Helper scripts for the homelab. Run them on VM 100 as root.
 | [`audit-homelab.sh`](audit-homelab.sh) | Takes a full, redacted snapshot of the VM as Markdown, used to keep these docs accurate | No, read-only |
 | [`add-site.sh`](add-site.sh) | Adds a new `https://<name>.example.com` site to the `nginx-proxy` container using the wildcard certificate | Yes: writes one nginx config file and reloads nginx (rolls back if the config is invalid) |
 
-Related (installed on the VM, not in this repo): `/usr/local/bin/vnc-tailscale.sh` starts/stops the VNC desktop bound to the Tailscale IP ([maintenance runbook](../runbooks/maintenance.md#vnc-desktop-tailscale-only)); `/usr/local/bin/tailscale-watchdog.sh` restarts Tailscale if it hangs (cron, every 5 min).
+Related (installed on the VM, not in this repo): `/usr/local/bin/app-db-dumps.sh` makes the nightly database dumps ([maintenance runbook](../runbooks/maintenance.md#nightly-app-database-dumps)). `/usr/local/bin/vnc-tailscale.sh` starts/stops the VNC desktop bound to the Tailscale IP ([maintenance runbook](../runbooks/maintenance.md#vnc-desktop-tailscale-only)); `/usr/local/bin/tailscale-watchdog.sh` restarts Tailscale if it hangs (cron, every 5 min).
 
 ## `audit-homelab.sh`
 

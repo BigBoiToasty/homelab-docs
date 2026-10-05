@@ -1,7 +1,7 @@
 # Immich (`immich`): photo library
 
 > Compose project `~/docker/immich` · network `immich_default` · deployed after 2026-09-16 · last verified 2026-09-25.
-> **In one line:** a self-hosted Google Photos. **Irreplaceable data with no backup yet**, so this is the top backup priority.
+> **In one line:** a self-hosted Google Photos. **The photos have no second copy yet** (the database is dumped nightly), so this is the top backup priority.
 
 ## Containers
 
@@ -25,16 +25,10 @@ flowchart LR
 
 The photos and the database are on **different virtual disks**. A usable backup needs both, captured at the same time: photos without the database lose albums, faces and people; the database without photos is useless.
 
-## Backup (not set up yet)
+## Backup (half done)
 
-What to back up nightly:
-
-```bash
-# 1. Database dump (safe while running)
-docker exec immich_postgres pg_dumpall -U postgres | gzip > /mnt/backups/immich/immich-db-$(date +%F).sql.gz
-# 2. Originals (the part that can't be regenerated)
-rsync -a --delete /mnt/tank/immich/library/ /mnt/tank/immich/upload/ /mnt/backups/immich/files/
-```
+1. **Database: done (2026-10-04).** `pg_dumpall` runs nightly at 04:40 into `/root/backups/app-dumps/<date>/immich.sql.gz` (~57 MB) and travels to hddpool with the 05:00 VM backup ([nightly app dumps](../runbooks/maintenance.md#nightly-app-database-dumps)).
+2. **Photos (48 GB): not yet.** They live only on the data disk on hddpool. Plan: add a virtual disk on **fastpool** (SSD pool) with *Backup* unchecked, mount it in the VM and `rsync -a` `/mnt/tank/immich` to it nightly. Then off-site later.
 
 Thumbnails and encoded videos can be regenerated from the admin **Jobs** page. The plan is for this to go to `hddpool/backups` and then off-site (restic/Borg); see [the roadmap](../roadmap/ROADMAP.md). Restore steps: [runbooks/disaster-recovery.md §3](../runbooks/disaster-recovery.md#3-per-service-data-recovery).
 

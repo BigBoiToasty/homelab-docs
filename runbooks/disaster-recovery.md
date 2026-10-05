@@ -14,10 +14,10 @@
 | Minecraft world | `/srv/games/minecraft/data/world` (boot disk) | mc-backup daily, 7 kept, on `/mnt/tank/backups` (other virtual disk, same VM) | ≤ 24 h | 10 min |
 | Terraria world | `/srv/games/terraria` (boot disk) | root cron 04:00 to `/mnt/tank/backups/terraria`, 7 days kept | ≤ 24 h | 10 min |
 | Immich library (47 GB) | `/mnt/tank/immich` (data disk) | **none** (data disk is not in the VM backup) | total loss | n/a |
-| Immich database | `~/docker/immich/postgres` (boot disk) | VM backup only (no DB dump) | ≤ 24 h | whole-VM restore |
-| Supabase Postgres | `~/docker/supabase-service/volumes/db/data` | VM backup only (no DB dump) | ≤ 24 h | whole-VM restore |
-| Vaultwarden vault | `/docker/media/config/vaultwarden` | VM backup only | ≤ 24 h | whole-VM restore |
-| n8n workflows/credentials | `/docker/appdata/n8n` | VM backup only | ≤ 24 h | whole-VM restore |
+| Immich database | `~/docker/immich/postgres` (boot disk) | VM backup + nightly `pg_dumpall` (04:40, 7 kept, since 2026-10-04) | ≤ 24 h | 15 min from the dump |
+| Supabase Postgres | `~/docker/supabase-service/volumes/db/data` | VM backup + nightly `pg_dumpall` | ≤ 24 h | 15 min from the dump |
+| Vaultwarden vault | `/docker/media/config/vaultwarden` | VM backup + nightly SQLite copy + RSA key | ≤ 24 h | 5 min |
+| n8n workflows/credentials | `/docker/appdata/n8n` | VM backup + nightly SQLite copy + `config` key | ≤ 24 h | 5 min |
 | *arr / Jellyfin / Kavita configs | `/docker/media/config/*` | none | rebuild | 1–2 h |
 | Ollama models, Docker images | boot disk | none needed (re-downloadable) | — | bandwidth-bound (~45 GB) |
 | TLS certs, proxy vhosts, tunnel token, Tailscale identity | `/etc/letsencrypt`, `~/docker/reverse-proxy/conf.d`, `/etc/cloudflared`, `/var/lib/tailscale` | none | re-issue / re-auth | 30–60 min |
@@ -162,10 +162,10 @@ Only when no VM backup exists. Order matters; each step depends on the previous.
 |---|---|---|
 | **Minecraft** | `docker compose stop minecraft` → move the broken `data/world` aside → `tar xzf /mnt/tank/backups/minecraft/world-<date>.tar.gz -C /srv/games/minecraft/data ./world` → `chown -R 1000:1000 /srv/games/minecraft/data/world` → `docker compose start minecraft` → check the log loads `"world"` and doesn't generate a new one. Archives made before 2026-09-26 have a different layout (the real world is at `./world` and a wrong new one at `./data/world`); use `original-world.tar.gz` from `minecraft-restore-2026-09-26/` for that era | mc-backup tars are RCON-quiesced (`save-off`), so they are safe to restore as-is. Keep `server.properties`/plugins from the live dir if only the world is corrupt. |
 | **Terraria** | Stop container → `tar xzf /mnt/tank/backups/terraria/terraria_<date>.tar.gz -C /srv/games/terraria` → start | Cron tar runs while the server is live; Terraria writes `.wld` atomically, but a backup taken mid-save can hold the `.wld.bak`. Prefer the second-newest archive if the newest fails to load. |
-| **Supabase Postgres** | Logical: `docker exec supabase-db pg_dumpall -U postgres > supabase.sql` (backup) / `cat supabase.sql \| docker exec -i supabase-db psql -U postgres` (restore into a fresh `db` with the same `POSTGRES_PASSWORD` and `JWT_SECRET`). Physical: stop the stack, replace `volumes/db/data`, start `db` alone, then the rest. | Roles, JWT secret and the `supabase_admin` password must match `.env`; otherwise auth/rest fail with 401/500. Storage objects live in `volumes/storage` and must be restored together with the DB (`storage.objects` rows reference them). |
-| **Immich** | Backup: `docker exec immich_postgres pg_dumpall -U postgres \| gzip > immich-db.sql.gz` plus a copy of `/mnt/tank/immich` (library, `upload/`, `thumbs/`, `encoded-video/`). Restore: fresh `immich` stack with the same `.env`, start **only** `database`, `gunzip -c immich-db.sql.gz \| docker exec -i immich_postgres psql -U postgres`, restore the library directory, then start the rest | DB and library must come from the same point in time. Thumbnails and encoded video can be regenerated from the admin Jobs page; originals under `library/`/`upload/` cannot. |
-| **Vaultwarden** | Stop container → restore `/docker/media/config/vaultwarden` (`db.sqlite3`, `attachments/`, `rsa_key*`) → start | Restore the RSA key pair too, or every client must re-login. Use `sqlite3 db.sqlite3 ".backup out.db"` for live backups. |
-| **n8n** | Stop → restore `/docker/appdata/n8n` (`database.sqlite`, `config`) → start | `config` holds `encryptionKey`; without it stored credentials are unreadable. Also export workflows: `docker exec n8n n8n export:workflow --all --output=/home/node/.n8n/wf.json`. |
+| **Supabase Postgres** | Logical: nightly dump in `/root/backups/app-dumps/<date>/supabase.sql.gz` (made with `pg_dumpall -U supabase_admin`) / `gunzip -c supabase.sql.gz \| docker exec -i supabase-db psql -U supabase_admin -d postgres` (restore into a fresh `db` with the same `POSTGRES_PASSWORD` and `JWT_SECRET`). Physical: stop the stack, replace `volumes/db/data`, start `db` alone, then the rest. | Roles, JWT secret and the `supabase_admin` password must match `.env`; otherwise auth/rest fail with 401/500. Storage objects live in `volumes/storage` and must be restored together with the DB (`storage.objects` rows reference them). |
+| **Immich** | Backup: nightly `/root/backups/app-dumps/<date>/immich.sql.gz` plus a copy of `/mnt/tank/immich` (library, `upload/`, `thumbs/`, `encoded-video/`). Restore: fresh `immich` stack with the same `.env`, start **only** `database`, `gunzip -c immich.sql.gz \| docker exec -i immich_postgres psql -U postgres -d postgres`, restore the library directory, then start the rest | DB and library must come from the same point in time. Thumbnails and encoded video can be regenerated from the admin Jobs page; originals under `library/`/`upload/` cannot. |
+| **Vaultwarden** | Stop container → copy `vaultwarden.sqlite3` from `/root/backups/app-dumps/<date>/` to `/docker/media/config/vaultwarden/db.sqlite3`, delete `db.sqlite3-wal`/`-shm`, restore `rsa_key.pem` → start | Restore the RSA key pair too, or every client must re-login. Use `sqlite3 db.sqlite3 ".backup out.db"` for live backups. |
+| **n8n** | Stop → copy `n8n.sqlite` → `/docker/appdata/n8n/database.sqlite` (delete `-wal`/`-shm`) and `n8n-config` → `config`, then `chown 1000:1000` both (the n8n container's user) → start | `config` holds `encryptionKey`; without it stored credentials are unreadable. Also export workflows: `docker exec n8n n8n export:workflow --all --output=/home/node/.n8n/wf.json`. |
 | **Jellyfin / *arr / Kavita / LazyLibrarian / Uptime-Kuma / Homepage** | Stop → restore the respective `/docker/media/config/<app>` dir → start | SQLite databases; stop the container first. Media files themselves are re-acquirable. |
 | **qBittorrent** | Restore `/home/<user>/docker/media/config/qbittorrent` (or the new canonical path) | Contains `.torrent` fastresume files; downloads resume from `/mnt/tank/media/downloads`. |
 | **Grafana / Prometheus** | `docker run --rm -v monitoring_grafana_data:/v -v $PWD:/b alpine tar czf /b/grafana.tgz -C /v .` (and reverse) | Prometheus TSDB is disposable; Grafana dashboards are worth backing up or provisioning as code. |
@@ -209,8 +209,8 @@ flowchart LR
     subgraph GUEST["VM 100"]
         MC["mc-backup (24 h)"]
         TC["terraria cron (04:00, fix path)"]
-        IM["immich pg_dumpall + library rsync (to add)"]
-        PG["pg_dumpall nightly (to add)"]
+        IM["immich library rsync (to add)"]
+        PG["app-db-dumps.sh 04:40 (done):<br/>Immich, Supabase, Vaultwarden, n8n"]
         CFG["config tar nightly (to add):<br/>/docker, /mnt/tank/*/configs,<br/>supabase volumes, /etc/nginx, /etc/letsencrypt, ~/docker/*.env"]
     end
     subgraph PVE["Proxmox"]
@@ -232,7 +232,8 @@ flowchart LR
 - [ ] **Hypervisor:** enable `zfs-auto-snapshot` or sanoid on `fastpool/vm-100-disk-1` and, after the storage realignment, on `fastpool/appdata`.
 - [ ] **Guest:** export `hddpool/backups` via NFS from PVE (or attach a second disk) and mount it at `/mnt/backups`; re-point `mc-backup` `/backups` and the Terraria cron there.
 - [x] **Guest:** fix the Terraria cron: `-C /srv/games/terraria` (done).
-- [ ] **Guest:** add nightly `pg_dumpall` for Supabase **and Immich**, an rsync of `/mnt/tank/immich`, and a config tar (list in the diagram) to the same mount; prune with `find -mtime +14 -delete`.
+- [x] **Guest:** nightly dumps of Supabase, Immich, Vaultwarden and n8n (`app-db-dumps.sh`, 04:40, to the boot disk so the VM backup carries them; 2026-10-04). → [maintenance](maintenance.md#nightly-app-database-dumps)
+- [ ] **Guest:** copy `/mnt/tank/immich` nightly to a fastpool disk; add a config tar (list in the diagram).
 - [ ] **Guest:** add json-file log rotation to `daemon.json`; delete the 7.6 GB of Stirling heap dumps; run `docker system prune` monthly.
 - [ ] **Offsite:** PBS remote sync to a second PBS, or `restic`/`rclone` from `hddpool/backups` to object storage with a `<YOUR_SECRET>` repository key stored in the password manager (not on the VM).
 - [ ] **Secrets escrow:** copy every `.env`, `cloudflare.ini`, the Cloudflare Tunnel token, Playit secret, Mullvad key and the Vaultwarden RSA keys to the offsite store; without them a restored DB is unusable.
@@ -252,10 +253,10 @@ flowchart LR
 | Tailscale watchdog | From the Proxmox console (not over Tailscale): `systemctl stop tailscaled`; wait ≤ 5 min | `tailscale status` back online, log line with free RAM/swap appended |
 | Restore-time drill | Time a full §2.2 rebuild in a scratch VM | ≤ 4 h, and the drill notes update this runbook |
 
-### 5.4 Known gaps as of 2026-09-28
+### 5.4 Known gaps as of 2026-10-04
 
 1. The VM backup (nightly since 2026-09-27) covers the **boot disk only** and has never been test-restored. Supabase, Vaultwarden, n8n, the Immich database and the game worlds are on the boot disk, so they are now covered at VM level.
 2. The data disk (`/mnt/tank`) has no backup: the **Immich photo library (47 GB)**, the in-VM game backups and Stirling data. It sits on hddpool, the same pool as the VM backups.
-3. No app-level dumps (Postgres `pg_dumpall` etc.), so restoring a single database means restoring the whole VM first.
+3. ~~No app-level dumps~~ Done 2026-10-04: one database can now be restored from `/root/backups/app-dumps/` without restoring the whole VM. The dumps themselves have not been test-restored yet.
 4. No offsite copy of anything, including the secrets and the tunnel token needed to make a restore useful.
 5. `hddpool/media` is empty. (The data disk no longer reserves its full size: `refreservation=none`, checked 2026-09-28.)
