@@ -83,9 +83,11 @@ Details: [architecture/networking-and-security.md](architecture/networking-and-s
 
 ## 📌 Current Focus & Roadmap
 
-- 🔴 **In Progress:** Test-restore the VM 100 backup once; watch VM memory after the 2026-10-03 incident.
+- 🔴 **In Progress:** Kernel reboot 2026-10-05 09:00 (then a GPU check); watch VM memory.
 - 🟠 **Urgent:** Reseat the host's M.2 SSD; off-site copy of photos and dumps.
-- 🟡 **Next Up:** Test-restore the VM backup, monitoring alerts to Discord, tune Immich background jobs.
+- 🌐 **Next project:** Make the Mush website public (Cloudflare Tunnel, Supabase API only, Studio stays private).
+- 🎮 **After that:** Game streaming to the Retroid with Wolf + Moonlight; RAM upgrade (2 × 8 GB DDR4) for the big games.
+- 🟡 **Also:** Monitoring alerts to Discord, test-restore the VM backup, tune Immich jobs, Pi-hole ad blocking (after alerts).
 - 📋 **Full List:** See [roadmap/ROADMAP.md](roadmap/ROADMAP.md) for detailed task tracking and future architecture plans.
 
 ## Keeping these docs current
