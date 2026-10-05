@@ -29,7 +29,6 @@ Things that can lose data or are one-line fixes.
 - [ ] **Finish monitoring: alerts to Discord.** Prometheus + Grafana + Uptime-Kuma already run, but nothing alerts. Plan (agreed 2026-10-04, waiting on a Discord webhook URL from the owner: channel → Edit Channel → Integrations → Webhooks → New Webhook → Copy URL; keep it in a root-only file, never in the docs): Grafana alerts for low available memory, swap > 80 %, disk > 85 %, hddpool > 80 %; Uptime-Kuma Discord notifications for services going down; `app-db-dumps.sh` and `immich-photo-copy.sh` post on `FAILED`. Optional: healthchecks.io as a dead-man's switch for when the whole VM is down; cAdvisor for per-container RAM/CPU. → [services/management.md](../services/management.md#monitoring-gaps)
 - [ ] **Reboot the VM once** to start the new kernel 6.1.0-53 (installed 2026-10-04; the NVIDIA driver is already built for it). Scheduled for 2026-10-05 09:00, after the nightly backup (one-time timer `oneoff-kernel-reboot.timer`; cancel with `systemctl stop oneoff-kernel-reboot.timer`). Afterwards check `docker exec ollama ollama ps` shows `100% GPU` after the first request.
 - [ ] **Patching from now on:** `apt update && apt full-upgrade` monthly (or `unattended-upgrades`), and `docker compose pull` for the internet-facing containers (portfolio nginx, Minecraft, Playit).
-- [ ] **LAN hardening (optional, if you ever share your network):** bind admin ports (Ollama 11434, Postgres 5432/6543, RCON 25575, dashboards) to `127.0.0.1` or the Tailscale IP, like VNC. Also: n8n back to `127.0.0.1:5678`, Homepage's Docker socket to `:ro`, SSH keys instead of the root password.
 
 ## ⚪ Backlog / wishlist
 
@@ -51,6 +50,7 @@ Things that can lose data or are one-line fixes.
 - ✅ Unknown device removed from the tailnet (owner, 2026-10-04).
 - ✅ Cloudflare: only one API token exists (certbot's, limited to DNS on one domain); the dead token line was removed from `~/docker/.env` (2026-10-04).
 - ✅ Duplicate apt certbot removed (`apt remove`, not `purge`: Debian's purge script can delete `/etc/letsencrypt`). Only the snap certbot and its timer remain; renewal dry-run passed afterwards (2026-10-04).
+- ⚪ Decided **not** to do LAN hardening (binding admin ports to localhost/Tailscale): only family and the occasional visitor use the home Wi-Fi, plus one Alexa. If that changes, turn on the router's guest Wi-Fi for visitors first (2026-10-04).
 - ⚪ Decided **not** to lock the game servers (whitelist/password) for now (2026-10-04).
 - ⚪ Decided **not** to run Immich machine learning on the GPU: the 8 GB is mostly Ollama's (2026-10-04).
 - ✅ All 51 OS updates installed: Docker 29.8.2, Tailscale 1.102.4, cloudflared 2026.9.3, kernel 6.1.0-53 (needs a reboot). Every container came back healthy (2026-10-04).
