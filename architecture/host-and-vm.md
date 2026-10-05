@@ -23,7 +23,7 @@ One VM runs all the Docker containers, rather than one VM or LXC per service. Th
 | ZFS `fastpool` | SSD pool, 8.72 TB. Datasets: `appdata`, `photos`, `vms`, and VM 100's boot disk |
 | ZFS `hddpool` | HDD pool, **~1.76 TB usable** (checked 2026-09-26; the earlier 2.72 TB was not the usable size). Holds `vm-100-disk-0`, the VM's 1.5 TB data disk. Datasets `backups` and `media` exist but are empty |
 | Drives (host `lsblk`, 2026-10-04) | 1 × 256 GB M.2 **SATA** SSD (probably the Proxmox system drive; not NVMe), 11 × 960 GB SAS SSDs (Samsung PM863-class and SanDisk), 3 × 1 TB WD HDDs. Pool membership not recorded yet (`zpool status`) |
-| M.2 SSD health (2026-10-04) | SMART PASSED, 0 reallocated / uncorrectable sectors, but **77 `UDMA_CRC_Error_Count`** and **2241 power cycles in 2031 power-on hours**: connection errors, not worn flash. Plan: reseat it, then recheck `smartctl -a /dev/sda` every few days; rising numbers after that mean replace it. `zpool status -x`: all pools healthy |
+| M.2 SSD health | SMART passes, but 77 connection (CRC) errors; reseat planned |
 | GPU | NVIDIA RTX 2060 SUPER 8 GB, PCIe passthrough to VM 100 (`vfio-pci` on the host) |
 | Backup jobs | VM 100 nightly at 05:00 to `hddpool-backups`, boot disk only (see [below](#vm-100-backup-working-since-2026-09-27)). The photo-copy disk (`scsi2`) has *Backup* unchecked |
 

@@ -27,11 +27,11 @@ The photos and the database are on **different virtual disks**. A usable backup 
 
 ## Backup
 
-1. **Database: done (2026-10-04).** `pg_dumpall` runs nightly at 04:40 into `/root/backups/app-dumps/<date>/immich.sql.gz` (~57 MB) and travels to hddpool with the 05:00 VM backup ([nightly app dumps](../runbooks/maintenance.md#nightly-app-database-dumps)).
-2. **Photos (48 GB): done (2026-10-04).** Copied nightly at 04:10 from the data disk (hddpool) to a separate disk on fastpool, `/mnt/photo-copy`. Deleted photos are kept there for 30 days ([nightly photo copy](../runbooks/maintenance.md#nightly-immich-photo-copy)).
-3. **Off-site: not yet.** Both copies are in the same server.
+- Database: dumped nightly ([app dumps](../runbooks/maintenance.md#nightly-app-database-dumps)).
+- Photos: copied nightly to a fastpool disk, deleted files kept 30 days ([photo copy](../runbooks/maintenance.md#nightly-immich-photo-copy)).
+- Off-site: not yet.
 
-Thumbnails and encoded videos can be regenerated from the admin **Jobs** page. The plan is for this to go to `hddpool/backups` and then off-site (restic/Borg); see [the roadmap](../roadmap/ROADMAP.md). Restore steps: [runbooks/disaster-recovery.md §3](../runbooks/disaster-recovery.md#3-per-service-data-recovery).
+Thumbnails and encoded videos can be regenerated from the admin **Jobs** page. Restore steps: [runbooks/disaster-recovery.md §3](../runbooks/disaster-recovery.md#3-per-service-data-recovery).
 
 ## Memory and CPU
 
@@ -40,5 +40,5 @@ Immich is the main reason the VM ran out of RAM (swap 7.9/8 GB on 2026-09-25). R
 - `immich_machine_learning`: `mem_limit: 1536m`, `MACHINE_LEARNING_WORKERS=1`
 - `immich_server`: `mem_limit: 3g`
 - In the admin UI, lower job concurrency and run big jobs (face detection, smart search re-index) overnight.
-- After the NVIDIA driver upgrade ([ai-tools.md](ai-tools.md#ollama-why-its-slow-right-now)), give the ML container the GPU.
+- After the NVIDIA driver upgrade ([ai-tools.md](ai-tools.md#ollama-on-the-gpu)), give the ML container the GPU.
 - Longer term: move the library to `fastpool/photos`, the ZFS dataset that was created for it.

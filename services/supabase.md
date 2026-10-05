@@ -35,6 +35,6 @@ All paths are relative to `~/docker/supabase-service/` (68 MB, on the boot disk)
 
 ## Backup
 
-Since 2026-10-04, `pg_dumpall -U supabase_admin` runs nightly at 04:40 into `/root/backups/app-dumps/<date>/supabase.sql.gz` ([nightly app dumps](../runbooks/maintenance.md#nightly-app-database-dumps)). Use `supabase_admin`, not `postgres`: in Supabase, `postgres` isn't a superuser and can't dump everything. The tables were still empty on 2026-10-04 (47 KB dump).
+Dumped nightly with `pg_dumpall -U supabase_admin` ([app dumps](../runbooks/maintenance.md#nightly-app-database-dumps)); `postgres` isn't a superuser in Supabase.
 
-Database rows reference files in `volumes/storage`. That folder isn't in the dump, but it's on the boot disk, so the nightly VM backup covers it. If you start storing files, add a `tar` of it to the script. Restore steps and gotchas (JWT/role mismatches): [runbooks/disaster-recovery.md §3](../runbooks/disaster-recovery.md#3-per-service-data-recovery).
+File storage (`volumes/storage`) isn't in the dump but is covered by the nightly VM backup.

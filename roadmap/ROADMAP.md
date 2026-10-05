@@ -1,6 +1,6 @@
 # Roadmap
 
-> Planned work, tech debt and wishlist for the homelab. Last updated 2026-10-04.
+> Planned work, tech debt and wishlist for the homelab. Last updated 2026-10-05.
 > Each task says **why** it matters and links to where the details live. Tick the box when done and move the line to [Done](#-done).
 
 **Legend:** 🔴 in progress · 🟠 urgent (risk of losing data) · 🟡 soon · ⚪ someday · ✅ done
@@ -9,9 +9,9 @@
 
 ## 🔴 In progress
 
-- [ ] **Test-restore the VM 100 backup once.** The nightly 05:00 job runs and its backups succeed (checked by the owner 2026-10-04). `zstd -t` only proves a file decompresses, not that the VM boots from it. Needs VM 100 stopped for 1–2 h, because the host can't run two VMs this size. Steps: [disaster-recovery §5.3](../runbooks/disaster-recovery.md#53-validation-procedures-run-quarterly-record-results).
-- [ ] **Keep an eye on VM memory.** The VM runs on 11 GB since 2026-09-27; 12 GB left the host too little RAM during backups. On 2026-10-03 it ran out of RAM and swap anyway, mainly because of Ollama's prompt cache; that is now capped ([incident](../services/README.md#2026-10-03-the-vm-ran-out-of-memory)). Check `free -h` over the next week: swap should stay well below 8 GB.
-- [ ] **Close old Claude sessions and leftover Chrome.** On 2026-10-03, 3 forgotten Claude sessions and 27 Playwright Chrome processes held ~2.7 GB. `ps -eo pid,etime,rss,comm --sort=-rss | head -20` shows them. The host only has 16 GB, so the VM can't grow. Real fix: a RAM upgrade to 32 GB. Don't add more swap: it only hides the problem. → [services/README.md#memory-budget-11-gb-vm](../services/README.md#memory-budget-11-gb-vm)
+- [ ] **Test-restore the VM 100 backup once** (needs VM 100 off for 1–2 h). → [disaster-recovery §5.3](../runbooks/disaster-recovery.md#53-validation-procedures-run-quarterly-record-results)
+- [ ] **Keep an eye on VM memory** after the [2026-10-03 incident](../services/README.md#2026-10-03-the-vm-ran-out-of-memory): swap should stay well below 8 GB.
+- [ ] **Close old Claude sessions and leftover Chrome** now and then; they held ~2.7 GB on 2026-10-03.
 - [ ] **Tune Immich background uploads/jobs.** Lower job concurrency in Admin → Jobs and run face detection / smart search overnight so they don't fight the game servers. → [services/immich.md](../services/immich.md#memory-and-cpu)
 
 ## 🟠 Short-term / immediate
@@ -20,43 +20,30 @@ Things that can lose data or are one-line fixes.
 
 - [ ] **Media apps: decide whether to restore their pre-Sep-8 settings** from `/root/docker/media/config`. They were reset by the same path change as Vaultwarden. → [services/media.md](../services/media.md#settings-probably-lost-on-2026-09-08)
 
-- [ ] **Reseat the 256 GB M.2 SSD in the Proxmox host.** It shows 77 connection (CRC) errors and 2241 power cycles in 2031 hours, a sign of a loose connection; the flash itself is healthy. Shut down, unplug, reseat, tighten the screw. Then recheck `smartctl -a /dev/sda | grep -iE "crc|power_cycle"` every few days: if the numbers still climb, plan a replacement. → [host-and-vm.md](../architecture/host-and-vm.md#proxmox-host)
-- [ ] **Off-site copy** of the photos and `/root/backups/app-dumps` (Backblaze B2 ≈ $0.30/month for 48 GB with restic, or the Windows desktop over Tailscale). Protects against fire/theft/surge, which take out both pools.
+- [ ] **Reseat the 256 GB M.2 SSD in the Proxmox host** (connection errors; flash healthy), then recheck its SMART counters. → [host-and-vm.md](../architecture/host-and-vm.md#proxmox-host)
+- [ ] **Off-site copy** of the photos and database dumps (e.g. Backblaze B2).
 
-## 🌐 Make Mush public (planned 2026-10-04, owner's next project, before game streaming)
+## 🌐 Make Mush public (next project)
 
-Mush's front end calls `https://supabase.example.com` from the visitor's browser, so the Supabase API has to be public too. Checked 2026-10-04: secrets are custom (not the example defaults); `binders`, `binder_slots` and `profiles` have row-level security with owner-only policies; SMTP is configured.
+- [ ] Publish Mush and its Supabase API through the Cloudflare Tunnel; Supabase Studio stays tailnet-only; require email confirmation for sign-ups.
 
-- [ ] You (Cloudflare): delete the `mush` and `supabase` A records (they point at the Tailscale IP), then add both as public hostnames on the existing tunnel.
-- [ ] Claude: a public-only nginx entry for the Supabase API that passes only `/auth/v1`, `/rest/v1`, `/storage/v1`, `/realtime/v1`, `/functions/v1`. **Supabase Studio (the admin dashboard) stays tailnet-only** under its own name.
-- [ ] Claude: turn off `ENABLE_EMAIL_AUTOCONFIRM`, so sign-ups must confirm their email (test that SMTP sends first).
-- [ ] Test from outside (phone on mobile data, Tailscale off): sign up, log in, Google login, create a binder.
-- Order: Claude prepares and shows the nginx change first, then the owner does the Cloudflare part. Mush's data is already in the nightly database dumps.
+## 🎮 Game streaming (after Mush)
 
-## 🎮 Game streaming (planned 2026-10-04, after Mush is public)
+Play Sekiro and Ghost of Tsushima from the server on the Retroid Pocket Flip 2 (Moonlight), at home and via Tailscale. Minecraft and Terraria keep running.
 
-Goal: play BOTW, Sekiro, Ghost of Tsushima and TOTK from the server on the Retroid Pocket Flip 2 (Moonlight), at home and away via Tailscale. Minecraft and Terraria must keep running. Ollama and n8n may pause while a game runs.
-
-- [ ] **Phase A, no new hardware: game mode + Wolf + BOTW as the first test.**
-  1. You: pick where games live. **Recommended:** Proxmox → VM 100 → Add → Hard Disk on **fastpool**, ~300 GB, **Backup unchecked**. **Or** use `/mnt/tank` (HDD, 1.4 TB free, no setup, slower loading). **Not** the boot disk: it is backed up in full nightly with 7 kept, and ~130 GB of games would overflow the 600 GiB backup storage.
-  2. Claude: `game-mode on|off|status` script. *On* stops Ollama, n8n, Stirling-PDF and Immich ML (~2.1 GB RAM + 5.4 GB VRAM). Supabase and Mush keep running (owner, 2026-10-04). *Off* restarts them. Safety: automatic *off* at 04:00, before the backups.
-  3. Claude: install Wolf (Games on Whales) in its own compose project with the NVIDIA toolkit, udev rules for `/dev/uinput` + `/dev/uhid`, host network (Moonlight ports 47984/47989/48010 TCP, 47999/48100/48200 UDP; LAN + tailnet only, no port-forward). Game containers capped (~5 GB) so only the game can run out of memory.
-  4. First test game (open question: which Steam games does the owner own?): something already owned on Steam, or a free Steam game. BOTW/TOTK need a dump of an owned copy; the owner's copy is on a Switch Lite, which normally can't be dumped (patched hardware), so the Zelda games are on hold.
-  5. You: Tailscale + Moonlight on the Retroid, pair with Wolf's PIN. Test at home, then away.
-- [ ] **Phase B: RAM upgrade, then the big games.** Host RAM now: 2 × 8 GB DDR4-2667. Adding: 2 × 8 GB DDR4-2666 (Apacer `AU08GGB26CQYBGH`) → 32 GB. Then VM to ~22 GB / 8 vCPU, and Steam for Sekiro and Ghost of Tsushima.
-- Not possible: the 2018 *Shadow of the Colossus* remake is PS4-only; the PS2 original runs in PCSX2.
-- Rejected (2026-10-04): a server motherboard. It needs a new Xeon/EPYC CPU and ECC RAM, used server RAM roughly doubled in price in 2026, idle power is higher, and per-core speed is worse for games.
+- [ ] **Phase A:** a games disk, a `game-mode` switch that pauses Ollama/n8n/Stirling/Immich ML, Wolf (Games on Whales), Moonlight on the Retroid.
+- [ ] **Phase B:** RAM upgrade. Host RAM now: 2 × 8 GB DDR4-2667. Adding: 2 × 8 GB DDR4-2666 (Apacer `AU08GGB26CQYBGH`) → 32 GB. Then VM to ~22 GB / 8 vCPU, and Steam for the big games.
 
 ## 🟡 Mid-term infrastructure upgrades
 
-- [ ] **Pi-hole as the tailnet's DNS, for ad blocking (after monitoring alerts).** Plan (owner, 2026-10-04): Tailscale admin → DNS → global nameserver = Pi-hole on the VM ("option B"), so every device with Tailscale on gets ad/tracker blocking, and Pi-hole also answers `*.example.com` locally so the public records can go. Only after Discord alerts exist and memory has stayed stable, because if the VM is down, devices with Tailscale on can't resolve *any* site (turn Tailscale off to get online again). Split DNS for the domain alone ("option A") was rejected: the sites are private already, so it gains nothing.
-- [ ] **Finish monitoring: alerts to Discord.** Prometheus + Grafana + Uptime-Kuma already run, but nothing alerts. Plan (agreed 2026-10-04, waiting on a Discord webhook URL from the owner: channel → Edit Channel → Integrations → Webhooks → New Webhook → Copy URL; keep it in a root-only file, never in the docs): Grafana alerts for low available memory, swap > 80 %, disk > 85 %, hddpool > 80 %; Uptime-Kuma Discord notifications for services going down; `app-db-dumps.sh` and `immich-photo-copy.sh` post on `FAILED`. Optional: healthchecks.io as a dead-man's switch for when the whole VM is down; cAdvisor for per-container RAM/CPU. → [services/management.md](../services/management.md#monitoring-gaps)
-- [ ] **Reboot the VM once** to start the new kernel 6.1.0-53 (installed 2026-10-04; the NVIDIA driver is already built for it). Scheduled for 2026-10-05 09:00, after the nightly backup (one-time timer `oneoff-kernel-reboot.timer`; cancel with `systemctl stop oneoff-kernel-reboot.timer`). Afterwards check `docker exec ollama ollama ps` shows `100% GPU` after the first request.
+- [ ] **Pi-hole as the tailnet's DNS** for ad blocking, after monitoring alerts exist.
+- [ ] **Monitoring alerts to Discord** (memory, swap, disk, services down, failed nightly backups). Waiting on a Discord webhook. → [services/management.md](../services/management.md#monitoring-gaps)
+- [ ] **Reboot the VM once** for kernel 6.1.0-53 (scheduled 2026-10-05 09:00), then check Ollama is on the GPU.
 - [ ] **Patching from now on:** `apt update && apt full-upgrade` monthly (or `unattended-upgrades`), and `docker compose pull` for the internet-facing containers (portfolio nginx, Minecraft, Playit).
 
 ## ⚪ Backlog / wishlist
 
-- [ ] **Simplify media app logins** (instead of SSO): passwordless Jellyfin profiles for family, and skip the login on the *arr apps for trusted networks (check whether Tailscale counts). Keep Vaultwarden and Immich logins: they keep each person's data private.
+- [ ] **Simplify media app logins** (passwordless Jellyfin profiles, no login on the *arr apps over Tailscale).
 
 - [ ] Web terminals (ttyd sidecars) and embedded game terminals. *(phases 3.4, 5.3)*
 - [ ] Heavy local AI workstation (RX 9070 XT). *(phase 4.1)*
@@ -65,26 +52,20 @@ Goal: play BOTW, Sekiro, Ghost of Tsushima and TOTK from the server on the Retro
 
 ## ✅ Done
 
-- ✅ Nightly VM backups confirmed succeeding (owner checked on the host, 2026-10-04).
-- ✅ n8n's Google OAuth app published to production, so the Gmail credential no longer expires weekly (owner, 2026-10-04).
-- ✅ Unknown device removed from the tailnet (owner, 2026-10-04).
-- ✅ Cloudflare: only one API token exists (certbot's, limited to DNS on one domain); the dead token line was removed from `~/docker/.env` (2026-10-04).
-- ✅ Duplicate apt certbot removed (`apt remove`, not `purge`: Debian's purge script can delete `/etc/letsencrypt`). Only the snap certbot and its timer remain; renewal dry-run passed afterwards (2026-10-04).
-- ⚪ Decided **not** needed (2026-10-04): more ZFS drives (data disk 4 % used, fastpool ~8 TB free); moving the Immich originals to `fastpool/photos` (the HDD is fine for them, and the nightly fastpool copy covers safety); a memory cap for the Chrome job-application desktop.
-- ⚪ Decided **not** to do LAN hardening (binding admin ports to localhost/Tailscale): only family and the occasional visitor use the home Wi-Fi, plus one Alexa. If that changes, turn on the router's guest Wi-Fi for visitors first (2026-10-04).
-- ⚪ Decided **not** to lock the game servers (whitelist/password) for now (2026-10-04).
-- ⚪ Decided **not** to run Immich machine learning on the GPU: the 8 GB is mostly Ollama's (2026-10-04).
-- ✅ All 51 OS updates installed: Docker 29.8.2, Tailscale 1.102.4, cloudflared 2026.9.3, kernel 6.1.0-53 (needs a reboot). Every container came back healthy (2026-10-04).
-- ✅ 2FA: Tailscale and Cloudflare are both logged into with Google, and the Google account has 2-Step Verification (confirmed by the owner 2026-10-04). If Cloudflare ever gets its own password, turn on Cloudflare's 2FA too.
-- ✅ Duplicate Playit agent removed: the host `playit.service` and the container shared one secret and kept knocking each other off; only the container runs now (2026-10-04).
-- ✅ Stirling-PDF heap dumps gone and turned off (`JAVA_CUSTOM_OPTS=-XX:-HeapDumpOnOutOfMemoryError`, 2026-10-04).
-- ✅ Docker log rotation set in `daemon.json` (10 MB × 3), active from the next Docker start / container recreate (2026-10-04).
-- ⚪ Decided **not** to start VNC at boot: it's only needed for job applications, so it's started by hand then (2026-10-04).
-- ⚪ Decided **not** to `chmod 600` the `.env` files: only root and the owner log in (2026-10-04).
-- ✅ Immich photos copied nightly to their own 150 GB disk on fastpool, deleted files kept 30 days (2026-10-04). → [maintenance](../runbooks/maintenance.md#nightly-immich-photo-copy)
-- ✅ Nightly database dumps of Vaultwarden, n8n, Immich and Supabase (`app-db-dumps.sh`, 04:40, 7 kept), carried to hddpool by the VM backup (2026-10-04). → [maintenance](../runbooks/maintenance.md#nightly-app-database-dumps)
-- ✅ Ollama's prompt cache capped at 1 GiB (`LLAMA_ARG_CACHE_RAM=1024`) and the container at 3 GiB, after it grew to ~5.5 GB and filled the VM (2026-10-03).
-- ✅ `tailscaled` and `sshd` have reserved memory and OOM protection; the Tailscale watchdog skips pointless restarts when memory is the problem (2026-10-03).
+- ✅ Nightly VM backups confirmed succeeding (2026-10-04).
+- ✅ n8n's Google OAuth app published to production (2026-10-04).
+- ✅ Unknown device removed from the tailnet (2026-10-04).
+- ✅ Cloudflare: one API token left (DNS-only); dead token removed from `~/docker/.env` (2026-10-04).
+- ✅ Duplicate apt certbot removed; only the snap certbot runs (2026-10-04).
+- ✅ All 51 OS updates installed (2026-10-04).
+- ✅ 2FA: Tailscale and Cloudflare log in with Google, which has 2-Step Verification (2026-10-04).
+- ✅ Duplicate Playit agent removed; only the container runs (2026-10-04).
+- ✅ Stirling-PDF heap dumps turned off (2026-10-04).
+- ✅ Docker log rotation (10 MB × 3) (2026-10-04).
+- ✅ Immich photos copied nightly to a fastpool disk (2026-10-04). → [maintenance](../runbooks/maintenance.md#nightly-immich-photo-copy)
+- ✅ Nightly database dumps of Vaultwarden, n8n, Immich and Supabase (2026-10-04). → [maintenance](../runbooks/maintenance.md#nightly-app-database-dumps)
+- ✅ Ollama prompt cache capped at 1 GiB, container at 3 GiB (2026-10-03).
+- ✅ Reserved memory for `tailscaled` and `sshd`; smarter Tailscale watchdog (2026-10-03).
 - ✅ Portfolio rebuilds itself from GitHub every 5 minutes (`portfolio-update.sh`, 2026-09-29).
 - ✅ Data disk no longer reserves its full 1.5 TB on hddpool (`refreservation=none`, checked 2026-09-28).
 - ✅ First Proxmox backup of VM 100: storage `hddpool-backups` (600 GiB), 46 GB archive in 2 h 51 min, VM never paused. Nightly job at 05:00, keep-last 7 (2026-09-27/28).
@@ -106,7 +87,7 @@ Goal: play BOTW, Sekiro, Ghost of Tsushima and TOTK from the server on the Retro
 - ✅ Root disk grown 102 → 502 GB, plus a 1.5 TB data disk (was 88 % full).
 - ✅ `pdf.example.com` has HTTPS.
 - ✅ Immich deployed.
-- ✅ Automatic certificate renewal (certbot timers) and nginx reload hook; one wildcard certificate for all sites, three unused old ones deleted, renewal dry-run passed (2026-10-04).
+- ✅ Certificate renewal fully automatic, including the nginx reload (2026-10-04).
 - ✅ Monitoring stack running (Prometheus, Grafana, Uptime-Kuma). *Alerts still missing; see mid-term.*
 - ✅ Stirling-PDF, Gluetun VPN kill switch, Minecraft (tuned Paper) and Terraria servers, Playit tunnels.
 

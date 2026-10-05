@@ -26,9 +26,7 @@
 
 Afterwards `SIGNUPS_ALLOWED` was set to `false` (compose backup: `docker-compose.yml.bak-20260925`).
 
-This is the highest-value data in the stack. **Backed up nightly since 2026-10-04:** `db.sqlite3` (via `sqlite3 .backup`) and `rsa_key.pem` go to `/root/backups/app-dumps/<date>/` at 04:40, and the 05:00 VM backup copies them to hddpool ([nightly app dumps](../runbooks/maintenance.md#nightly-app-database-dumps)). Without the RSA key, every client must log in again. There is no `attachments/` folder yet; if you start using attachments, add it to the script.
-
-- Still open: an off-site copy.
+This is the highest-value data in the stack. `db.sqlite3` and `rsa_key.pem` are dumped nightly ([app dumps](../runbooks/maintenance.md#nightly-app-database-dumps)); without the RSA key every client must log in again.
 
 ## Monitoring gaps
 

@@ -36,7 +36,7 @@ On 2026-09-25 the VM ran out of memory (7.9 of 8 GB swap). Immich is now capped 
 | stirling-pdf | 1 GiB | ~490 MiB | [ai-tools](ai-tools.md) |
 | terraria | 2 GiB | ~0.4–1 GiB | [gaming](gaming.md) |
 | n8n | 1 GiB | ~290 MiB | [ai-tools](ai-tools.md) |
-| ollama | 3 GiB (since 2026-10-03) | ~1 GiB RAM (`llama-server`) with the model loaded, plus a prompt cache now capped at 1 GiB (it was allowed 8 GiB and reached 5.5 GiB). The model itself (5.4 GB) is in GPU memory | [ai-tools](ai-tools.md#why-ollama-used-system-ram-although-the-model-is-on-the-gpu-fixed-2026-10-03) |
+| ollama | 3 GiB | ~1 GiB RAM (prompt cache capped at 1 GiB); the model itself is in GPU memory | [ai-tools](ai-tools.md#ollama-prompt-cache) |
 | everything else in Docker | mostly none | ~1.2 GiB | — |
 | host programs (Chrome/Xvfb, Claude tooling, dockerd, tailscaled) | none (`tailscaled` and `sshd` have reserved memory, see below) | ~1.5–2.5 GiB normally. On 2026-10-03: 27 leftover Playwright Chrome processes (~2 GiB) and 3 forgotten Claude sessions | [host-and-vm](../architecture/host-and-vm.md#host-native-programs) |
 
@@ -44,24 +44,9 @@ The caps (Minecraft 5 G, Immich 4 G + 2 G, Terraria 2 G, Ollama 3 G, n8n 1 G, St
 
 ### 2026-10-03: the VM ran out of memory
 
-**What you saw:** Tailscale went offline around 19:30 and the VM couldn't be reached, not even through the Proxmox console. A shutdown from Proxmox at 22:50 brought it back.
+RAM and swap filled up (mainly Ollama's prompt cache, plus leftover Chrome and old Claude sessions), Tailscale stopped responding, and the VM had to be restarted from Proxmox. Claude Code's automatic update failed during it and had to be reinstalled.
 
-**What happened (from the logs of that boot):**
-
-1. Around 19:30, RAM **and** all 8 GB of swap were full. The biggest users were Ollama's `llama-server` (~5.5 GB, its prompt cache, see [ai-tools](ai-tools.md#why-ollama-used-system-ram-although-the-model-is-on-the-gpu-fixed-2026-10-03)), 27 leftover Chrome processes from Playwright (~2 GB) and 3 old Claude sessions. At 19:38 the kernel killed a Chrome process.
-2. `tailscaled` didn't crash on its own. With no memory left, DNS lookups timed out and its internal watchdog stopped it (`panic: ipnlocal: watchdog timeout`, 20:29).
-3. The Tailscale watchdog script restarted `tailscaled` every 5 minutes (46 starts/stops between 20:30 and 22:46). Each restart timed out, because the problem was memory, not Tailscale.
-4. The Proxmox console login hung for the same reason.
-5. Claude Code's automatic update (2.1.288 → 2.1.289, npm) ran at 20:17 and failed, which is why it had to be reinstalled. The current install is in `/usr/lib/node_modules/@anthropic-ai/claude-code`; `~/.claude` (settings, memory) survived.
-
-**What changed afterwards:**
-
-- Ollama's prompt cache capped at 1 GiB and the container at 3 GiB ([ai-tools](ai-tools.md#why-ollama-used-system-ram-although-the-model-is-on-the-gpu-fixed-2026-10-03)).
-- `tailscaled` and `sshd` have **reserved memory** and are protected from the OOM killer, so remote access survives memory pressure for longer ([networking](../architecture/networking-and-security.md#23-tailscale-mesh)).
-- The watchdog no longer restarts Tailscale when the real problem is memory ([networking](../architecture/networking-and-security.md#23-tailscale-mesh)).
-- Decided **not** to install `earlyoom`: it would kill the biggest process (possibly Minecraft or something else important) without asking. The caps above are the safer fix.
-
-**If it happens again:** `tail /var/log/tailscale-watchdog.log` now records free RAM and swap at each failure. `journalctl -b -1 -k | grep -i "killed process"` shows what the kernel killed in the previous boot.
+Fixes: Ollama's cache and container are capped ([ai-tools](ai-tools.md#ollama-prompt-cache)), `tailscaled` and `sshd` have reserved memory, and the Tailscale watchdog no longer restarts it when memory is the problem ([networking](../architecture/networking-and-security.md#23-tailscale-mesh)).
 
 ## Where data lives
 
@@ -87,7 +72,7 @@ To regenerate this table from the live system: the audit script's "Where contain
 
 ## Docker engine settings
 
-- `/etc/docker/daemon.json` registers the `nvidia` runtime and, since 2026-10-04, rotates logs: `json-file` with `max-size 10m`, `max-file 3` (backup: `daemon.json.bak-20261004`). Docker reads the file only when it starts, and the setting applies only to containers created after that. Docker was restarted by the 2026-10-04 update, so the daemon uses it now, and each container gets it the next time it's recreated (`docker compose up -d` after a change or `pull`). The largest container log was 118 MB when this was set.
+- `/etc/docker/daemon.json` registers the `nvidia` runtime and rotates container logs (`max-size 10m`, `max-file 3`). Containers pick up the log setting when they're recreated.
 - NVIDIA container toolkit 1.20.1, driver 615. Containers get the GPU through the toolkit. If it's missing, GPU containers fail to start with `could not select device driver "nvidia"` ([ai-tools](ai-tools.md#ollama-on-the-gpu)).
 - 38 images (38.1 GB, nothing to prune). Named volumes use 1.05 GB.
 - Only Supabase and Immich pin image versions; everything else uses `:latest`, so updates happen whenever you `docker compose pull`.

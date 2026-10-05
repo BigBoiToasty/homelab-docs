@@ -45,12 +45,7 @@ How it is wired:
 - The host-native nginx package is still installed but `inactive` and `disabled`. Remove it, or leave it disabled so it never races the container for :80/:443.
 - `nginx -t` inside the container passes.
 
-**Certificates (checked 2026-10-04):** all six sites use **one wildcard certificate** (`example.com`, `*.example.com`, valid to 2026-12-23). It renews through Cloudflare DNS (`dns-cloudflare`), which works without any open port. Every `ssl_certificate` line in `nginx-proxy` points at it, and each site was checked to serve it. `/etc/letsencrypt` is bind-mounted read-only into `nginx-proxy`.
-
-- **Reload hook (added 2026-10-04):** `/etc/letsencrypt/renewal-hooks/deploy/reload-nginx-proxy.sh` runs `nginx -t` and then `nginx -s reload` in the container after every renewal, so the new certificate is served right away. Both certbot installs use this hooks folder. Tested by running it by hand.
-- **Old per-site certificates deleted (2026-10-04):** separate `mush`, `n8n` and `supabase`+`n8n` certificates that nothing served (the `n8n` one used `standalone` renewal, which can't work here). Backup of `/etc/letsencrypt` from before: `/root/letsencrypt-backup-20261004.tgz`. Only the old host-nginx configs in `/etc/nginx/sites-available/backup/` still mention them; that nginx is disabled.
-- **Renewal tested 2026-10-04:** `certbot renew --dry-run` for the wildcard succeeded.
-- One certbot: the snap 5.8.0 with `certbot-dns-cloudflare` (`snap.certbot.renew.timer`). The apt copy was removed 2026-10-04 with `apt remove`; **never `apt purge certbot`**, because its purge script can delete `/etc/letsencrypt`. The leftover `/etc/cron.d/certbot` does nothing now (it checks for `/usr/bin/certbot`).
+**Certificates:** one wildcard certificate (`example.com`, `*.example.com`) serves every site. The snap certbot renews it through Cloudflare DNS, and a deploy hook (`/etc/letsencrypt/renewal-hooks/deploy/reload-nginx-proxy.sh`) reloads `nginx-proxy` afterwards. `/etc/letsencrypt` is bind-mounted read-only into `nginx-proxy`. Never `apt purge certbot`: Debian's purge script can delete `/etc/letsencrypt`.
 
 ### 2.2 Cloudflare Tunnel
 
@@ -88,26 +83,15 @@ flowchart TB
 - The VM advertises no subnet routes and is not an exit node; tailnet peers reach only the VM's own ports. No `serve`/`funnel` configuration.
 - MagicDNS gives `debian-docker.<tailnet>.ts.net`; use it instead of the raw `100.x.x.x` address.
 - `tailscaled` listens on UDP `41641` and two TCP ports bound to the tailnet addresses only.
-- **Watchdog:** root cron every 5 minutes runs `/usr/local/bin/tailscale-watchdog.sh`. It pings `100.100.100.100` and restarts `tailscaled` if that fails. Rewritten 2026-10-03 after the [memory incident](../services/README.md#2026-10-03-the-vm-ran-out-of-memory), where the old version restarted Tailscale 46 times without helping:
-  - only one copy runs at a time (`flock`), and the ping, restart and `tailscale up` each have a time limit, so a stuck run can't pile up;
-  - if less than 300 MB of RAM is available it **skips the restart** and logs that the problem is memory;
-  - every log line in `/var/log/tailscale-watchdog.log` includes free RAM and swap.
-  The old script is kept as `tailscale-watchdog.sh.bak-20261003`. Systemd also restarts `tailscaled` itself (`Restart=always`, `RestartSec=10s` in its drop-in).
-- **Reserved memory (2026-10-03):** `tailscaled` has `MemoryMin=160M` and `sshd` `MemoryMin=32M`, both with `OOMScoreAdjust=-900`, in `/etc/systemd/system/{tailscaled,ssh}.service.d/override.conf`. The kernel won't take that memory from them and kills almost anything else first. `tailscaled` normally uses ~80 MB. This keeps remote access alive longer under pressure, but it can't save a VM that is completely out of memory: the real protection is the container caps.
+- **Watchdog:** root cron every 5 minutes runs `/usr/local/bin/tailscale-watchdog.sh`, which restarts `tailscaled` if `100.100.100.100` doesn't answer, but skips the restart when the VM is out of memory. Log: `/var/log/tailscale-watchdog.log`.
+- **Reserved memory:** `tailscaled` and `sshd` have `MemoryMin` and `OOMScoreAdjust=-900` (drop-ins in `/etc/systemd/system/{tailscaled,ssh}.service.d/`).
 - Tailscale adds its own nftables chains; the host `INPUT` policy is otherwise `ACCEPT` and `DOCKER-USER` is empty (no ufw, no fail2ban).
 
 ### 2.4 Game traffic via Playit.gg
 
 Playit establishes an *outbound* UDP session to the relay, so no router port-forward is needed for `25565/tcp` (Minecraft) or `7777/tcp+udp` (Terraria). One agent carries every tunnel on the account, so both games share it.
 
-**Two agents used to run** with the **same secret**, so Playit saw one agent logging in from two places. They knocked each other off (`timeout waiting for register response`, `failed to authenticate`, `control session expired; reconnecting`, last seen 2026-10-04 15:28), which players see as random disconnects:
-
-| Agent | Where | State (2026-09-25) |
-|---|---|---|
-| `playit.service` (systemd, host) | `/opt/playit/playitd`, secret in `/etc/playit/playit.toml` | active, enabled, running since boot |
-| `playit` container (`gaming` project) | `network_mode: host`, secret inline in the compose file | running since 2026-09-24 |
-
-**Fixed 2026-10-04:** `systemctl disable --now playit`; the container is the only agent. The host install (`/opt/playit`, `/etc/playit`) is still on disk but disabled. Don't re-enable it.
+Only the `playit` container runs the agent (`gaming` project, `network_mode: host`). The old host `playit.service` is disabled; don't re-enable it, or the two fight over the same secret.
 
 ## 3. Gluetun VPN network-mode sharing
 

@@ -35,31 +35,11 @@ grep -h 'Finished Backup\|ERROR' /hddpool/backups/dump/vzdump-qemu-100-*.log | t
 
 ### Nightly app database dumps
 
-`/usr/local/bin/app-db-dumps.sh` (root cron, 04:40, since 2026-10-04) writes clean copies of the irreplaceable databases to the **boot disk**. The 05:00 VM backup then carries them to hddpool, a different physical pool. The VM backup alone copies the databases as live files, which usually restores fine but isn't guaranteed; these dumps are.
-
-| File in `/root/backups/app-dumps/<date>/` | Made with | Checked by the script |
-|---|---|---|
-| `vaultwarden.sqlite3`, `vaultwarden-rsa_key.pem` | `sqlite3 .backup` (safe while running) | `pragma integrity_check` |
-| `n8n.sqlite`, `n8n-config` (encryption key) | `sqlite3 .backup` | `pragma integrity_check` |
-| `immich.sql.gz` | `pg_dumpall -U postgres --clean --if-exists` in `immich_postgres` | ends with "cluster dump complete" |
-| `supabase.sql.gz` | `pg_dumpall -U supabase_admin --clean --if-exists` in `supabase-db` (`postgres` isn't a superuser in Supabase) | same |
-
-- ~62 MB per night, ~10 s. Folders older than 7 days are deleted. Everything is mode `600`/`700` (root only), because it contains the vault and the n8n key.
-- Result log: `tail /var/log/app-db-dumps.log` should show `OK <size> in ...` for each night; `FAILED: <app>` names what broke.
-- **Not included:** the Immich photos (data disk, see the [roadmap](../roadmap/ROADMAP.md)) and Supabase's file storage `volumes/storage` (on the boot disk, so the VM backup covers it; empty so far).
-- Restoring from a dump: [disaster-recovery §3](disaster-recovery.md#3-per-service-data-recovery).
+`/usr/local/bin/app-db-dumps.sh` (04:40) dumps the Vaultwarden, n8n, Immich and Supabase databases (plus Vaultwarden's RSA key and n8n's encryption key) to `/root/backups/app-dumps/<date>/`, keeps 7 days, and the 05:00 VM backup carries them to hddpool. Log: `/var/log/app-db-dumps.log`. Restore: [disaster-recovery §3](disaster-recovery.md#3-per-service-data-recovery).
 
 ### Nightly Immich photo copy
 
-`/usr/local/bin/immich-photo-copy.sh` (root cron, 04:10, since 2026-10-04) mirrors `/mnt/tank/immich` (data disk on **hddpool**) to `/mnt/photo-copy/immich` (its own 150 GB disk on **fastpool**). If either pool dies, the other still has the photos.
-
-- `rsync -a --delete` at low priority. Files deleted or changed in Immich aren't lost straight away: the old version moves to `/mnt/photo-copy/deleted/<date>/` and is removed after 30 days.
-- **Safety checks:** it refuses to run if `/mnt/photo-copy` isn't mounted (rsync would otherwise fill the boot disk) or if `/mnt/tank/immich/library` is missing or empty (`--delete` would otherwise wipe the copy). Both were tested.
-- First full copy 2026-10-04: 48 GB, 24,764 files, ~11 min, verified file-by-file. A normal night takes seconds.
-- Result log: `tail /var/log/immich-photo-copy.log` shows `OK <size> copied, <free> free` each night.
-- Space: 48 of 147 GB used. Grow the disk in Proxmox (VM 100 → Hardware → Disk Action → Resize), then `resize2fs /dev/sdc` in the VM.
-- Restore: stop Immich, `rsync -a /mnt/photo-copy/immich/ /mnt/tank/immich/`, restore the matching database dump ([disaster-recovery §3](disaster-recovery.md#3-per-service-data-recovery)), start Immich.
-- **Not off-site:** fire, theft or a surge would take both pools. That's the next step on the [roadmap](../roadmap/ROADMAP.md).
+`/usr/local/bin/immich-photo-copy.sh` (04:10) mirrors `/mnt/tank/immich` (hddpool) to `/mnt/photo-copy/immich` (a 150 GB fastpool disk, not in the VM backup). Deleted or changed files are kept 30 days under `/mnt/photo-copy/deleted/`. It refuses to run if either disk is missing. Log: `/var/log/immich-photo-copy.log`.
 
 Don't reboot the host or the VM between 05:00 and ~08:00 without checking whether the backup is still running (`pgrep -a vzdump` on the host). A running backup can be followed with `journalctl -fu <unit>` or in the web UI under the node's Tasks.
 

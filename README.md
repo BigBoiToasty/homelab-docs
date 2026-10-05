@@ -3,10 +3,9 @@
 **Last updated:** 2026-10-04
 
 **What changed:**
-- Roadmap review with the owner: nightly VM backups confirmed working, n8n's Google app published, an unknown device removed from Tailscale, the duplicate certbot removed, and a dead Cloudflare token deleted. Decided against game-server locks and Immich on the GPU for now. [Roadmap](roadmap/ROADMAP.md).
-- All 51 OS updates installed; the new kernel starts at the reboot scheduled for 2026-10-05 09:00.
-- Certificates: one wildcard for all sites, nginx reloads after each renewal, test renewal passed. [Details](architecture/networking-and-security.md#21-private-https-via-nginx-proxy-tailnet-only-by-dns).
-- Earlier on 2026-10-04: one Playit agent instead of two, nightly photo copy and database dumps, Stirling heap dumps off, Docker log rotation.
+- Nightly database dumps and a nightly copy of the Immich photos on the SSD pool.
+- The 2026-10-03 memory crash is fixed (Ollama capped, Tailscale protected), and all OS updates are installed.
+- Cleanups: one Playit agent, one certbot, one certificate, Docker log rotation.
 
 ## Where to find what
 
