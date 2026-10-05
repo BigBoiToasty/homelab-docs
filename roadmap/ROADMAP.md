@@ -9,9 +9,7 @@
 
 ## 🔴 In progress
 
-- [ ] **Finish the VM 100 backup setup.** The first manual backup worked on 2026-09-27 ([details](../architecture/host-and-vm.md#vm-100-backup-working-since-2026-09-27)). Left to do (on the Proxmox host):
-  1. The nightly 05:00 job exists (seen under Datacenter → Backup, 2026-09-28). Check that its first scheduled run finished with `OK` (`ls -lh /hddpool/backups/dump/`, newest `.log` ends with "Finished Backup of VM 100").
-  2. Once, do a real test restore (see [disaster-recovery §5.3](../runbooks/disaster-recovery.md#53-validation-procedures-run-quarterly-record-results)). `zstd -t` only proves the file decompresses, not that the VM boots from it. It needs VM 100 stopped, because the host can't run two VMs this size.
+- [ ] **Test-restore the VM 100 backup once.** The nightly 05:00 job runs and its backups succeed (checked by the owner 2026-10-04). `zstd -t` only proves a file decompresses, not that the VM boots from it. Needs VM 100 stopped for 1–2 h, because the host can't run two VMs this size. Steps: [disaster-recovery §5.3](../runbooks/disaster-recovery.md#53-validation-procedures-run-quarterly-record-results).
 - [ ] **Keep an eye on VM memory.** The VM runs on 11 GB since 2026-09-27; 12 GB left the host too little RAM during backups. On 2026-10-03 it ran out of RAM and swap anyway, mainly because of Ollama's prompt cache; that is now capped ([incident](../services/README.md#2026-10-03-the-vm-ran-out-of-memory)). Check `free -h` over the next week: swap should stay well below 8 GB.
 - [ ] **Close old Claude sessions and leftover Chrome.** On 2026-10-03, 3 forgotten Claude sessions and 27 Playwright Chrome processes held ~2.7 GB. `ps -eo pid,etime,rss,comm --sort=-rss | head -20` shows them. The host only has 16 GB, so the VM can't grow. Real fix: a RAM upgrade to 32 GB. Don't add more swap: it only hides the problem. → [services/README.md#memory-budget-11-gb-vm](../services/README.md#memory-budget-11-gb-vm)
 - [ ] **Tune Immich background uploads/jobs.** Lower job concurrency in Admin → Jobs and run face detection / smart search overnight so they don't fight the game servers. → [services/immich.md](../services/immich.md#memory-and-cpu)
@@ -21,20 +19,14 @@
 Things that can lose data or are one-line fixes.
 
 - [ ] **Media apps: decide whether to restore their pre-Sep-8 settings** from `/root/docker/media/config`. They were reset by the same path change as Vaultwarden. → [services/media.md](../services/media.md#settings-probably-lost-on-2026-09-08)
-- [ ] **n8n: publish the Google OAuth app** to *In production* if the Gmail credential breaks again after a week (it was reconnected 2026-09-26). → [services/ai-tools.md](../services/ai-tools.md#n8n)
 
 - [ ] **Reseat the 256 GB M.2 SSD in the Proxmox host.** It shows 77 connection (CRC) errors and 2241 power cycles in 2031 hours, a sign of a loose connection; the flash itself is healthy. Shut down, unplug, reseat, tighten the screw. Then recheck `smartctl -a /dev/sda | grep -iE "crc|power_cycle"` every few days: if the numbers still climb, plan a replacement. → [host-and-vm.md](../architecture/host-and-vm.md#proxmox-host)
 - [ ] **Off-site copy** of the photos and `/root/backups/app-dumps` (Backblaze B2 ≈ $0.30/month for 48 GB with restic, or the Windows desktop over Tailscale). Protects against fire/theft/surge, which take out both pools.
-- [ ] **Lock the public game servers.** Minecraft whitelist on (`ENABLE_WHITELIST`, `ENFORCE_WHITELIST`, `WHITELIST=`); Terraria server password; in the Playit dashboard, confirm only 25565 and 7777 are tunnelled. → [services/gaming.md](../services/gaming.md#who-can-reach-it)
-- [ ] **Review the tailnet devices** in the Tailscale admin console (Machines): remove any you don't recognize, such as a phone from another account that was offline for 8+ days on 2026-10-03.
-- [ ] **Optional: tidy Cloudflare API tokens.** The one certbot uses is already limited to DNS on your one domain (checked 2026-10-04). The token in `~/docker/.env` no longer works and nothing uses it: delete that line, and in Cloudflare → My Profile → API Tokens delete any token you don't recognize.
 
 ## 🟡 Mid-term infrastructure upgrades
 
-- [ ] **Optional:** `apt purge certbot` so only the snap certbot runs (both work; it's just duplication). → [networking-and-security.md §2.1](../architecture/networking-and-security.md#21-private-https-via-nginx-proxy-tailnet-only-by-dns)
 - [ ] **Local DNS with Pi-hole or AdGuard Home** (optional). Today the public DNS records point at the Tailscale IP, which works but shows your tailnet address to anyone who looks it up. A local DNS server (or Tailscale split DNS) could answer `*.example.com` privately instead.
 - [ ] **Finish monitoring: alerts to Discord.** Prometheus + Grafana + Uptime-Kuma already run, but nothing alerts. Plan (agreed 2026-10-04, waiting on a Discord webhook URL from the owner: channel → Edit Channel → Integrations → Webhooks → New Webhook → Copy URL; keep it in a root-only file, never in the docs): Grafana alerts for low available memory, swap > 80 %, disk > 85 %, hddpool > 80 %; Uptime-Kuma Discord notifications for services going down; `app-db-dumps.sh` and `immich-photo-copy.sh` post on `FAILED`. Optional: healthchecks.io as a dead-man's switch for when the whole VM is down; cAdvisor for per-container RAM/CPU. → [services/management.md](../services/management.md#monitoring-gaps)
-- [ ] **Optional: Immich machine learning on the GPU** (`-cuda` image). It would have to share the 8 GB with Ollama; lower Ollama's keep-alive to `20m` first. → [services/ai-tools.md](../services/ai-tools.md#ollama-on-the-gpu)
 - [ ] **Reboot the VM once** to start the new kernel 6.1.0-53 (installed 2026-10-04; the NVIDIA driver is already built for it). Scheduled for 2026-10-05 09:00, after the nightly backup (one-time timer `oneoff-kernel-reboot.timer`; cancel with `systemctl stop oneoff-kernel-reboot.timer`). Afterwards check `docker exec ollama ollama ps` shows `100% GPU` after the first request.
 - [ ] **Patching from now on:** `apt update && apt full-upgrade` monthly (or `unattended-upgrades`), and `docker compose pull` for the internet-facing containers (portfolio nginx, Minecraft, Playit).
 - [ ] **LAN hardening (optional, if you ever share your network):** bind admin ports (Ollama 11434, Postgres 5432/6543, RCON 25575, dashboards) to `127.0.0.1` or the Tailscale IP, like VNC. Also: n8n back to `127.0.0.1:5678`, Homepage's Docker socket to `:ro`, SSH keys instead of the root password.
@@ -54,6 +46,13 @@ Things that can lose data or are one-line fixes.
 
 ## ✅ Done
 
+- ✅ Nightly VM backups confirmed succeeding (owner checked on the host, 2026-10-04).
+- ✅ n8n's Google OAuth app published to production, so the Gmail credential no longer expires weekly (owner, 2026-10-04).
+- ✅ Unknown device removed from the tailnet (owner, 2026-10-04).
+- ✅ Cloudflare: only one API token exists (certbot's, limited to DNS on one domain); the dead token line was removed from `~/docker/.env` (2026-10-04).
+- ✅ Duplicate apt certbot removed (`apt remove`, not `purge`: Debian's purge script can delete `/etc/letsencrypt`). Only the snap certbot and its timer remain; renewal dry-run passed afterwards (2026-10-04).
+- ⚪ Decided **not** to lock the game servers (whitelist/password) for now (2026-10-04).
+- ⚪ Decided **not** to run Immich machine learning on the GPU: the 8 GB is mostly Ollama's (2026-10-04).
 - ✅ All 51 OS updates installed: Docker 29.8.2, Tailscale 1.102.4, cloudflared 2026.9.3, kernel 6.1.0-53 (needs a reboot). Every container came back healthy (2026-10-04).
 - ✅ 2FA: Tailscale and Cloudflare are both logged into with Google, and the Google account has 2-Step Verification (confirmed by the owner 2026-10-04). If Cloudflare ever gets its own password, turn on Cloudflare's 2FA too.
 - ✅ Duplicate Playit agent removed: the host `playit.service` and the container shared one secret and kept knocking each other off; only the container runs now (2026-10-04).

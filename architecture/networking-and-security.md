@@ -50,7 +50,7 @@ How it is wired:
 - **Reload hook (added 2026-10-04):** `/etc/letsencrypt/renewal-hooks/deploy/reload-nginx-proxy.sh` runs `nginx -t` and then `nginx -s reload` in the container after every renewal, so the new certificate is served right away. Both certbot installs use this hooks folder. Tested by running it by hand.
 - **Old per-site certificates deleted (2026-10-04):** separate `mush`, `n8n` and `supabase`+`n8n` certificates that nothing served (the `n8n` one used `standalone` renewal, which can't work here). Backup of `/etc/letsencrypt` from before: `/root/letsencrypt-backup-20261004.tgz`. Only the old host-nginx configs in `/etc/nginx/sites-available/backup/` still mention them; that nginx is disabled.
 - **Renewal tested 2026-10-04:** `certbot renew --dry-run` for the wildcard succeeded.
-- Two certbot installs, each with its own timer: apt certbot 2.1.0 (`certbot.timer`) and the snap 5.8.0 with `certbot-dns-cloudflare` (`snap.certbot.renew.timer`). Redundant but harmless; the snap is the one to keep.
+- One certbot: the snap 5.8.0 with `certbot-dns-cloudflare` (`snap.certbot.renew.timer`). The apt copy was removed 2026-10-04 with `apt remove`; **never `apt purge certbot`**, because its purge script can delete `/etc/letsencrypt`. The leftover `/etc/cron.d/certbot` does nothing now (it checks for `/usr/bin/certbot`).
 
 ### 2.2 Cloudflare Tunnel
 
@@ -237,12 +237,12 @@ Internal-only (exposed, not published): node_exporter `9100`, supabase-db `5432`
 | 8 | Medium | Vaultwarden `SIGNUPS_ALLOWED=true` on a LAN/tailnet-reachable port | Set `false` once accounts exist. |
 | 9 | Low | No `unattended-upgrades`. All 51 pending updates were installed 2026-10-04 (Docker 29.8.2, Tailscale 1.102.4, cloudflared 2026.9.3, kernel 6.1.0-53) | Install updates monthly (`apt update && apt full-upgrade`), or `apt install unattended-upgrades` for security updates. |
 | 10 | ~~Medium~~ Fixed | ~~Duplicate Playit agents (host + container)~~ | Host service disabled 2026-10-04. |
-| 11 | Low | Two certbot installs with two renewal timers | Reload hook added, leftover certificates deleted and renewal dry-run passed (2026-10-04). Optional: `apt purge certbot` (keep the snap). |
+| 11 | ~~Low~~ Fixed | ~~Two certbot installs~~ | Apt certbot removed, reload hook added, leftover certificates deleted, renewal dry-run passed (2026-10-04). |
 | 12 | Low | avahi and rpcbind listening with no consumer | `systemctl disable --now avahi-daemon rpcbind`. |
 | 13 | Medium | Minecraft is public via Playit with `online-mode=true` but **no whitelist** (0 entries, `enforce-whitelist=false`) and no ops | Set `ENABLE_WHITELIST=true`, `ENFORCE_WHITELIST=true` and `WHITELIST=<names>` in the `gaming` compose, then recreate. |
 | 14 | Medium | Terraria is public via Playit with **no server password** | Add `password=<YOUR_SECRET>` to `serverconfig.txt` (or the image's password variable). |
 | 15 | Low | Confirm in the Playit dashboard that only 25565 and 7777 are tunnelled, not RCON 25575 | Delete any other tunnels. |
-| 16 | Info | Accounts that control everything: the Tailscale login (joins the tailnet), the Cloudflare account and the Cloudflare API token in `~/docker/.env` (DNS + tunnel) | 2FA: done (both log in with Google, which has 2-Step Verification; 2026-10-04). API tokens (checked 2026-10-04): certbot's token in `/etc/letsencrypt/cloudflare.ini` is already scoped (one zone, no account access, DNS yes, zone settings/WAF refused). `CLOUDFLARE_API_TOKEN` in `~/docker/.env` is **invalid** (Cloudflare rejects it) and nothing uses it. Still open: review the tailnet devices. |
+| 16 | Info | Accounts that control everything: the Tailscale login (joins the tailnet), the Cloudflare account and the Cloudflare API token in `~/docker/.env` (DNS + tunnel) | 2FA: done (both log in with Google, which has 2-Step Verification; 2026-10-04). API tokens (checked 2026-10-04): certbot's token in `/etc/letsencrypt/cloudflare.ini` is already scoped (one zone, no account access, DNS yes, zone settings/WAF refused). The old, invalid `CLOUDFLARE_API_TOKEN` line was removed from `~/docker/.env` (backup `.env.bak-20261004`); the owner confirmed no other tokens or keys exist. Still open: review the tailnet devices. |
 
 ### 6.3 Token scrubbing rules for this documentation
 

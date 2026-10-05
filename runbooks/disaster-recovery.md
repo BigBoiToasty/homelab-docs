@@ -104,7 +104,7 @@ Only when no VM backup exists. Order matters; each step depends on the previous.
 3. **Docker:** Docker CE from `download.docker.com` (engine 29.x, compose plugin 5.x). Create the shared bridge before any stack: `docker network create server-net`.
 4. **Tailscale:** install from `pkgs.tailscale.com`, `tailscale up` (or `--auth-key=<YOUR_SECRET>`), confirm MagicDNS name resolves. Reinstate the watchdog: copy `tailscale-watchdog.sh` to `/usr/local/bin/`, `chmod +x`, add the `*/5` root cron line. Recreate the memory protection drop-ins for `tailscaled` and `ssh` ([networking §2.3](../architecture/networking-and-security.md#23-tailscale-mesh)).
 5. **Certificates, reverse proxy and tunnel:**
-   - `snap install certbot && snap set certbot trust-plugin-with-root=ok && snap install certbot-dns-cloudflare` (use the snap only; do not also install apt `certbot`).
+   - `snap install certbot && snap set certbot trust-plugin-with-root=ok && snap install certbot-dns-cloudflare` (use the snap only; do not also install apt `certbot`, and never `apt purge certbot` on a working server: its purge script can delete `/etc/letsencrypt`).
    - Write `/etc/letsencrypt/cloudflare.ini` with `dns_cloudflare_api_token = <YOUR_SECRET>` (`chmod 600`).
    - Issue certificates: `certbot certonly --dns-cloudflare --dns-cloudflare-credentials /etc/letsencrypt/cloudflare.ini -d example.com -d '*.example.com'`. One wildcard covers every vhost.
    - Add a deploy hook: `/etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh` containing `docker exec nginx-proxy nginx -s reload`.

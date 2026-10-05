@@ -3,9 +3,9 @@
 **Last updated:** 2026-10-04
 
 **What changed:**
-- All 51 pending OS updates installed (Docker, Tailscale, Cloudflare tunnel, kernel). Every service came back healthy. The new kernel starts at the next reboot; the NVIDIA driver is already built for it.
-- Certificates: all sites use one wildcard certificate, nginx now reloads automatically after each renewal, the three old unused certificates are deleted, and a test renewal passed. [Details](architecture/networking-and-security.md#21-private-https-via-nginx-proxy-tailnet-only-by-dns).
-- 2FA: Tailscale and Cloudflare log in with Google, which has 2-Step Verification.
+- Roadmap review with the owner: nightly VM backups confirmed working, n8n's Google app published, an unknown device removed from Tailscale, the duplicate certbot removed, and a dead Cloudflare token deleted. Decided against game-server locks and Immich on the GPU for now. [Roadmap](roadmap/ROADMAP.md).
+- All 51 OS updates installed; the new kernel starts at the reboot scheduled for 2026-10-05 09:00.
+- Certificates: one wildcard for all sites, nginx reloads after each renewal, test renewal passed. [Details](architecture/networking-and-security.md#21-private-https-via-nginx-proxy-tailnet-only-by-dns).
 - Earlier on 2026-10-04: one Playit agent instead of two, nightly photo copy and database dumps, Stirling heap dumps off, Docker log rotation.
 
 ## Where to find what
@@ -84,8 +84,8 @@ Details: [architecture/networking-and-security.md](architecture/networking-and-s
 ## 📌 Current Focus & Roadmap
 
 - 🔴 **In Progress:** Test-restore the VM 100 backup once; watch VM memory after the 2026-10-03 incident.
-- 🟠 **Urgent:** Reseat the host's M.2 SSD; lock the public game servers (whitelist / password); off-site copy of photos and dumps.
-- 🟡 **Next Up:** Test-restore the VM backup, review the tailnet devices, tune Immich background jobs.
+- 🟠 **Urgent:** Reseat the host's M.2 SSD; off-site copy of photos and dumps.
+- 🟡 **Next Up:** Test-restore the VM backup, monitoring alerts to Discord, tune Immich background jobs.
 - 📋 **Full List:** See [roadmap/ROADMAP.md](roadmap/ROADMAP.md) for detailed task tracking and future architecture plans.
 
 ## Keeping these docs current
