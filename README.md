@@ -13,9 +13,9 @@
 |---|---|---|
 | [`architecture/`](architecture/README.md) | Hardware, the VM, disks, network maps, reverse-proxy flow, who can reach what, security | [host-and-vm.md](architecture/host-and-vm.md), [networking-and-security.md](architecture/networking-and-security.md) |
 | [`services/`](services/README.md) | One page per app stack: what it does, ports, where its data lives, backups | [services/README.md](services/README.md) (overview table) |
-| [`runbooks/`](runbooks/README.md) | Step-by-step guides: routine maintenance and disaster recovery | [maintenance.md](runbooks/maintenance.md) |
+| [`runbooks/`](runbooks/README.md) | Step-by-step guides: routine maintenance, disaster recovery, and the incident log (everything that went wrong and how it was fixed) | [maintenance.md](runbooks/maintenance.md), [incident-log.md](runbooks/incident-log.md) |
 | [`scripts/`](scripts/README.md) | `audit-homelab.sh` (snapshot for the docs), `add-site.sh` (add a website) | [scripts/README.md](scripts/README.md) |
-| [`roadmap/`](roadmap/ROADMAP.md) | To-do list by urgency, wishlist, tech debt | [ROADMAP.md](roadmap/ROADMAP.md) |
+| [`roadmap/`](roadmap/ROADMAP.md) | To-do list by urgency, wishlist, and the Done list | [ROADMAP.md](roadmap/ROADMAP.md) |
 
 ## What's running
 

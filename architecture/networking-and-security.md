@@ -209,24 +209,18 @@ Internal-only (exposed, not published): node_exporter `9100`, supabase-db `5432`
 
 ### 6.2 Findings and recommended fixes
 
-| # | Severity | Finding (2026-09-25) | Fix |
+| # | Severity | Finding | Fix |
 |---|---|---|---|
 | 1 | High | `sshd`: `PermitRootLogin yes`, `PasswordAuthentication yes`, `X11Forwarding yes`, no `authorized_keys` for root, no fail2ban | Add a key, then set `PasswordAuthentication no`, `PermitRootLogin prohibit-password`; install fail2ban or rely on Tailscale-only SSH. |
-| 2 | ~~High~~ Fixed 2026-09-25 | `x11vnc -nopw` and noVNC were on all interfaces including public IPv6 | Now started by `/usr/local/bin/vnc-tailscale.sh`: x11vnc `-listen <tailscale-ip> -listenv6 ::1`, websockify on `<tailscale-ip>:3010`. Verified refused on LAN and public IPv6. Still no VNC password (accepted: tailnet is single-user). |
-| 3 | Medium (LAN/tailnet only) | No host firewall: `INPUT` policy `ACCEPT`, `DOCKER-USER` empty, while Ollama `11434` (no auth), RCON `25575`, Postgres `5432/6543`, Kong `8000/8443`, qBittorrent `8080` and 20+ admin UIs listen on all interfaces | Bind non-public services to `127.0.0.1` or the tailnet IP in Compose, **or** add `DOCKER-USER` rules that allow only `tailscale0` + the LAN subnet (Docker-published ports bypass `INPUT`). |
-| 4 | Low | n8n regressed from `127.0.0.1:5678` to `0.0.0.0:5678`, bypassing nginx/TLS on the LAN | Restore `"127.0.0.1:5678:5678"`; nginx reaches it via the host gateway either way. |
-| 5 | Medium | `homepage` mounts the Docker socket **read-write** | Add `:ro`. |
-| 6 | Medium | Secrets written literally in compose files: Gluetun `WIREGUARD_PRIVATE_KEY` (`media`), Minecraft/mc-backup `RCON_PASSWORD` and Playit `SECRET_KEY` (`gaming`) | Move to each project's `.env`, reference as `${VAR}`. |
-| 7 | Low (accepted 2026-10-04) | All `.env` files are mode `644` (world-readable), including Supabase's ~20 key-material values | Left as is (owner decision 2026-10-04): `644` only matters for other non-root accounts, and the only one is the owner's own; everyone else who logs in is root anyway. Revisit if other people get accounts. |
-| 8 | Medium | Vaultwarden `SIGNUPS_ALLOWED=true` on a LAN/tailnet-reachable port | Set `false` once accounts exist. |
-| 9 | Low | No `unattended-upgrades`. All 51 pending updates were installed 2026-10-04 (Docker 29.8.2, Tailscale 1.102.4, cloudflared 2026.9.3, kernel 6.1.0-53) | Install updates monthly (`apt update && apt full-upgrade`), or `apt install unattended-upgrades` for security updates. |
-| 10 | ~~Medium~~ Fixed | ~~Duplicate Playit agents (host + container)~~ | Host service disabled 2026-10-04. |
-| 11 | ~~Low~~ Fixed | ~~Two certbot installs~~ | Apt certbot removed, reload hook added, leftover certificates deleted, renewal dry-run passed (2026-10-04). |
-| 12 | Low | avahi and rpcbind listening with no consumer | `systemctl disable --now avahi-daemon rpcbind`. |
-| 13 | Medium | Minecraft is public via Playit with `online-mode=true` but **no whitelist** (0 entries, `enforce-whitelist=false`) and no ops | Set `ENABLE_WHITELIST=true`, `ENFORCE_WHITELIST=true` and `WHITELIST=<names>` in the `gaming` compose, then recreate. |
-| 14 | Medium | Terraria is public via Playit with **no server password** | Add `password=<YOUR_SECRET>` to `serverconfig.txt` (or the image's password variable). |
-| 15 | Low | Confirm in the Playit dashboard that only 25565 and 7777 are tunnelled, not RCON 25575 | Delete any other tunnels. |
-| 16 | Info | Accounts that control everything: the Tailscale login (joins the tailnet), the Cloudflare account and the Cloudflare API token in `~/docker/.env` (DNS + tunnel) | 2FA: done (both log in with Google, which has 2-Step Verification; 2026-10-04). API tokens (checked 2026-10-04): certbot's token in `/etc/letsencrypt/cloudflare.ini` is already scoped (one zone, no account access, DNS yes, zone settings/WAF refused). The old, invalid `CLOUDFLARE_API_TOKEN` line was removed from `~/docker/.env` (backup `.env.bak-20261004`); the owner confirmed no other tokens or keys exist. Still open: review the tailnet devices. |
+| 2 | Accepted | No host firewall; many admin ports (Ollama, Postgres, RCON, dashboards) listen on the LAN | Not needed while only family uses the home Wi-Fi (owner, 2026-10-04). If that changes: guest Wi-Fi for visitors, or bind ports to `127.0.0.1`/the tailnet IP. |
+| 3 | Accepted | n8n listens on `0.0.0.0:5678` instead of `127.0.0.1` | Same reason as #2. |
+| 4 | Medium | `homepage` mounts the Docker socket **read-write** | Add `:ro`. |
+| 5 | Medium | Secrets written literally in compose files: Gluetun `WIREGUARD_PRIVATE_KEY` (`media`), Minecraft/mc-backup `RCON_PASSWORD` and Playit `SECRET_KEY` (`gaming`) | Move to each project's `.env`, reference as `${VAR}`. |
+| 6 | Accepted | `.env` files are mode `644` | Only root and the owner log in (owner, 2026-10-04). |
+| 7 | Low | No `unattended-upgrades` | Update monthly (`apt update && apt full-upgrade`). |
+| 8 | Low | avahi and rpcbind listening with no consumer | `systemctl disable --now avahi-daemon rpcbind`. |
+
+Fixed findings are in the roadmap's [Done list](../roadmap/ROADMAP.md#-done) and the [incident log](../runbooks/incident-log.md).
 
 ### 6.3 Token scrubbing rules for this documentation
 

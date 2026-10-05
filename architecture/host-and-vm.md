@@ -25,28 +25,13 @@ One VM runs all the Docker containers, rather than one VM or LXC per service. Th
 | Drives (host `lsblk`, 2026-10-04) | 1 × 256 GB M.2 **SATA** SSD (probably the Proxmox system drive; not NVMe), 11 × 960 GB SAS SSDs (Samsung PM863-class and SanDisk), 3 × 1 TB WD HDDs. Pool membership not recorded yet (`zpool status`) |
 | M.2 SSD health | SMART passes, but 77 connection (CRC) errors; reseat planned |
 | GPU | NVIDIA RTX 2060 SUPER 8 GB, PCIe passthrough to VM 100 (`vfio-pci` on the host) |
-| Backup jobs | VM 100 nightly at 05:00 to `hddpool-backups`, boot disk only (see [below](#vm-100-backup-working-since-2026-09-27)). The photo-copy disk (`scsi2`) has *Backup* unchecked |
+| Backup jobs | VM 100 nightly at 05:00 to `hddpool-backups`, boot disk only (see [below](#vm-100-backup)). The photo-copy disk (`scsi2`) has *Backup* unchecked |
 
 Host RAM (checked 2026-09-26): 16 GB total. VM 11 GB since 2026-09-27 (was 12), ZFS read cache (ARC) capped at 1.5 GB (Proxmox default, 10 %) and using ~0.2 GB, the rest is Proxmox. The ARC is not competing with the VM, but there is no spare RAM to give the VM either. With the GPU passed through, all of the VM's RAM is locked on the host at all times; it can't be lent back.
 
 To do on the host (the audit script can't see it): record `qm config 100` and `zpool status`.
 
-### hddpool space and the planned VM backup (2026-09-26)
-
-`zfs list -r hddpool` on the host showed `vm-100-disk-0` (1.46 TB) with a **reservation of the full 1.47 TB** (`refreservation`), although only ~56 GB is written. That left the pool only 291 GB free. The plan:
-
-1. ✅ Done (`refreservation=none` confirmed 2026-09-28). `zfs set refreservation=none hddpool/vm-100-disk-0` frees ~1.4 TB at once, with no downtime. It's safe because deletions inside the VM reach the pool (`discard` works on `sdb`, and `fstrim.timer` runs daily since 2026-09-27).
-2. `zfs set quota=600G hddpool/backups` stops backups from ever filling the pool.
-3. `pvesm add dir hdd-backups --path /hddpool/backups --content backup --is_mountpoint yes`. The last flag stops Proxmox from writing onto its own boot disk if the dataset isn't mounted.
-4. Datacenter → Backup: VM 100, 03:00, snapshot mode, ZSTD, keep-daily 3 + keep-weekly 2 (~100 GB each, ~500 GB total). Then do one test restore to a new VM ID, with the GPU and network removed first.
-
-The pool is then overcommitted (1.5 TB disk + 600 GB quota > 1.76 TB). That's fine at today's usage, but add a "hddpool > 80 % full" alert.
-
-Why hddpool and not fastpool: VM 100's boot disk (all databases, Vaultwarden, configs) lives on fastpool. A backup on the same pool dies with it.
-
-### VM 100 backup: working since 2026-09-27
-
-What was actually set up differs a little from the plan above:
+### VM 100 backup
 
 | | Value |
 |---|---|
@@ -57,25 +42,11 @@ What was actually set up differs a little from the plan above:
 | First good run | 2026-09-27 13:30 → 16:21 (2 h 51 min), 46 GB archive, task `OK`, `zstd -t` passed |
 | Before it | trim runs at 04:30 (VM `fstrim.timer`) so the backup skips deleted blocks |
 
-Create the job on the host with:
-
 ```bash
 pvesh create /cluster/backup --schedule 05:00 --vmid 100 --storage hddpool-backups --mode snapshot --compress zstd --bwlimit 51200 --performance max-workers=1 --prune-backups keep-last=7 --enabled 1
 ```
 
-**What made it stable.** The first attempt (2026-09-27 ~03:40) froze the VM: CPU steal up to 78 %, load ~84, and the host had to be powered off. The retry at 04:01 got further but was interrupted at 2 %. What fixed it:
-1. VM RAM 12 → 11 GB, so the host has room for ZFS and vzdump.
-2. Host tuning of the ZFS write buffer and swappiness (2026-09-27, made persistent; check `/etc/modprobe.d/` and `/etc/sysctl.d/` on the host for the values).
-3. One compression thread and the 50 MiB/s limit.
-
-During the good run the VM never paused, CPU steal peaked at 0.4 % and at least 2 GB of RAM stayed available.
-
-**Space and time.** The archive holds only the blocks in use: ~63 GB of data on the zvol after a trim, ~100 GB uncompressed at the first run (a week of untrimmed deletions), 46 GB compressed. Seven copies fit in the 600 GiB easily.
-
-**Pitfalls seen on 2026-09-27:**
-- Pasting `systemd-run ... vzdump ...` and `journalctl -fu ...` together turned the second command into extra vzdump arguments; the unit failed instantly. Run them as two lines.
-- `/var/log/vzdump/qemu-100.log` shows no progress while a run is going, and can sit at "removing (old) fleecing image" the whole time. Progress is in `journalctl -u <unit>` or the task log; the file is filled in at the end.
-- After an interrupted run, check `zfs list -t all | grep fleece` for a leftover fleecing image.
+The first attempt froze the VM; what fixed it is in the [incident log](../runbooks/incident-log.md).
 
 ## VM 100 `debian-docker`
 
@@ -89,7 +60,7 @@ During the good run the VM never paused, CPU steal peaked at 0.4 % and at least 
 | GPU | RTX 2060 SUPER, NVIDIA driver 615 (open kernel module) + container toolkit 1.20.1. Used by Ollama and Jellyfin |
 | QEMU guest agent | **On** in Proxmox and in the VM (2026-09-26) |
 | Uptime | rebooted 2026-09-26 ~17:10 |
-| Stability | Ran out of RAM and swap on 2026-10-03 (~19:30) and was restarted from Proxmox at 22:50; cause and fixes in [services/README.md](../services/README.md#2026-10-03-the-vm-ran-out-of-memory). The 09-23 boot also had OOM kills and CPU stalls |
+| Stability | Ran out of RAM and swap on 2026-10-03 (~19:30) and was restarted from Proxmox at 22:50; cause and fixes in the [incident log](../runbooks/incident-log.md). The 09-23 boot also had OOM kills and CPU stalls |
 
 ### Core services on the VM
 
@@ -157,12 +128,3 @@ flowchart LR
 - **Not attached as datasets:** `hddpool/media`, `hddpool/backups`, `fastpool/photos`, `fastpool/appdata`. Media and backups already live on the HDDs through `sdb`, so that goal is met. There are no ZFS/NFS mounts inside the VM. `/mnt/media` and `/mnt/photos` are empty folders on the boot disk, prepared but never used.
 
 Which path belongs to which app: [services/README.md → Where data lives](../services/README.md#where-data-lives).
-
-### Recommended storage alignment
-
-| Move | To | How | Why |
-|---|---|---|---|
-| ~~`/mnt/tank/media`, `/mnt/tank/backups` → HDDs~~ | done | `sdb` is on hddpool (2026-09-24) | ✅ |
-| Backups out of the VM | Proxmox backup job → a different disk or off-site | vzdump/PBS | A VM backup must not depend on the VM itself |
-| `/mnt/tank/immich` | `fastpool/photos` | NFS export or dedicated disk | The dataset was made for this; allows ZFS snapshots of just the photos |
-| `/docker`, `/srv/games`, database dirs | `fastpool/appdata` | dedicated disk mounted at `/docker` | Separates app state from the OS for snapshots and restores |

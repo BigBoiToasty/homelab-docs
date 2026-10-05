@@ -1,7 +1,7 @@
 # Roadmap
 
 > Planned work, tech debt and wishlist for the homelab. Last updated 2026-10-05.
-> Each task says **why** it matters and links to where the details live. Tick the box when done and move the line to [Done](#-done).
+> Each task says **why** it matters and links to where the details live. Tick the box when done and move the line to [Done](#-done). Problems and their fixes are in the [incident log](../runbooks/incident-log.md).
 
 **Legend:** 🔴 in progress · 🟠 urgent (risk of losing data) · 🟡 soon · ⚪ someday · ✅ done
 
@@ -10,7 +10,7 @@
 ## 🔴 In progress
 
 - [ ] **Test-restore the VM 100 backup once** (needs VM 100 off for 1–2 h). → [disaster-recovery §5.3](../runbooks/disaster-recovery.md#53-validation-procedures-run-quarterly-record-results)
-- [ ] **Keep an eye on VM memory** after the [2026-10-03 incident](../services/README.md#2026-10-03-the-vm-ran-out-of-memory): swap should stay well below 8 GB.
+- [ ] **Keep an eye on VM memory** after the [2026-10-03 incident](../runbooks/incident-log.md): swap should stay well below 8 GB.
 - [ ] **Close old Claude sessions and leftover Chrome** now and then; they held ~2.7 GB on 2026-10-03.
 - [ ] **Tune Immich background uploads/jobs.** Lower job concurrency in Admin → Jobs and run face detection / smart search overnight so they don't fight the game servers. → [services/immich.md](../services/immich.md#memory-and-cpu)
 
@@ -73,7 +73,7 @@ Play Sekiro and Ghost of Tsushima from the server on the Retroid Pocket Flip 2 (
 - ✅ VM RAM 12 → 11 GB so the host keeps enough RAM during backups (2026-09-27).
 - ✅ Ollama runs on the GPU: NVIDIA driver 615, container toolkit reinstalled, `qwen3:8b` at ~63 tokens/s, model kept loaded (2026-09-26).
 - ✅ VM CPU type `host` and QEMU guest agent on, in Proxmox and in the VM (2026-09-26).
-- ✅ Minecraft: original world restored after the 2026-09-24 move had left it behind; `mc-backup` now backs up the live folder (2026-09-26). → [services/gaming.md](../services/gaming.md#the-sep-2426-world-mix-up-what-happened-and-how-to-avoid-it)
+- ✅ Minecraft: original world restored after the 2026-09-24 move had left it behind; `mc-backup` now backs up the live folder (2026-09-26). → [services/gaming.md](../runbooks/incident-log.md)
 - ✅ n8n Gmail credential reconnected (2026-09-26).
 - ✅ Immich memory capped (server 4 GiB, ML 2 GiB).
 
@@ -90,53 +90,4 @@ Play Sekiro and Ghost of Tsushima from the server on the Retroid Pocket Flip 2 (
 - ✅ Certificate renewal fully automatic, including the nginx reload (2026-10-04).
 - ✅ Monitoring stack running (Prometheus, Grafana, Uptime-Kuma). *Alerts still missing; see mid-term.*
 - ✅ Stirling-PDF, Gluetun VPN kill switch, Minecraft (tuned Paper) and Terraria servers, Playit tunnels.
-
----
-
-## Original phase blueprint (status as of 2026-09-26)
-
-| Phase | Item | Status | Notes |
-|---|---|---|---|
-| 1.1 | Stirling-PDF | ✅ | Running, HTTPS. JVM tuning still pending |
-| 1.2 | Remote development (VS Code SSH) | ✅ | Root + password login still allowed |
-| 2.1 | Security & torrents (Gluetun) | ✅ | |
-| 2.2 | Media & backup (Jellyfin / Immich) | 🟡 | Both deployed; Immich database and photos backed up nightly on the server, not off-site; media library empty |
-| 2.3 | Terraria server | ✅ | Running; nightly backup working |
-| 2.4 | Minecraft server (Paper) | ✅ | World restored 2026-09-26; backups fixed |
-| 2.5 | External gaming connectivity | ✅ | One Playit agent since 2026-10-04; no whitelist/password |
-| 2.6 | System monitoring | 🟡 | Running; no container metrics or alerts |
-| 3.1 | Headless game host (Steam/Wolf) | ⚪ | |
-| 3.2 | VRAM balancing (Ollama) | 🟡 | Ollama on the GPU (5.4 of 8 GB); no balancing with other GPU users yet |
-| 3.3 | Moonlight streaming | ⚪ | |
-| 3.4 | Web terminals (ttyd) | ⚪ | |
-| 3.5 | RAM caps & Ollama isolation | 🟡 | Immich capped, Ollama model in VRAM, Ollama capped at 3 GiB with a 1 GiB prompt cache (2026-10-03); Supabase and host programs still uncapped |
-| 4.1 | AI workstation (RX 9070 XT) | ⚪ | |
-| 4.2 | Wake-on-LAN | ⚪ | |
-| 5.1 | Custom React dashboard | ⚪ | Mush front-end exists |
-| 5.2 | Live service integration | ⚪ | Supabase backend exists |
-| 5.3 | Embedded game terminals | ⚪ | |
-
-## Tech debt: design vs. reality (drift register)
-
-Things that were planned one way and are actually another. Re-check with the audit script.
-
-| Item | Design | 2026-09-16 | 2026-09-25 | Action |
-|---|---|---|---|---|
-| Stirling-PDF memory | 512 MiB, `-Xmx256m` | 1 GiB, defaults, stopped | 1 GiB, defaults, running; 33 heap dumps show repeated OOMs; 10-04: dumps gone and turned off | Optional |
-| Ollama limits | RAM/VRAM caps | no cap, CPU | 09-26: on the GPU, keep-alive -1, no RAM cap; 10-03: 3 GiB cap, prompt cache 1 GiB | ✅ |
-| Chrome desktop | container, 1.5 GiB | native, VNC open | native, VNC tailnet-only | Backlog |
-| Media library | `hddpool/media` | empty dir on root disk | empty dir on data disk | Mid-term |
-| Backups | `hddpool/backups` + PBS | same disk as data | inside the VM; 09-27: vzdump of the boot disk to `hddpool-backups`, nightly 05:00; data disk not included; 10-04: nightly app DB dumps | In progress |
-| Minecraft data path | one folder | `/srv/games/minecraft` | 09-24: server moved to `data/`, world left behind; 09-26: fixed | ✅ |
-| Terraria backup | nightly | working | 09-26: working again | ✅ |
-| Playit | one agent | two | two; 10-04: one (container) | ✅ |
-| qBittorrent config | `/docker/media/config/qbittorrent` | under `/home/<user>` | unchanged | Backlog |
-| n8n binding | loopback | `127.0.0.1` | `0.0.0.0` | Mid-term (LAN hardening) |
-| Reverse proxy | host nginx | host nginx | `nginx-proxy` container | ✅ docs updated |
-| Public ingress | — | assumed port-forward | tunnel (portfolio) + Playit only | ✅ verified |
-| Photos | Immich on `fastpool/photos` | absent | on `/mnt/tank`, no backup; 10-04: nightly copy on a fastpool disk | Backlog (move) + off-site |
-| Root disk | — | 102 GB, 88 % | 502 GB, 15 % | ✅ |
-| Log rotation | bounded | none | none; 10-04: set in `daemon.json` (from next Docker start) | ✅ |
-| Monitoring | full | 1 scrape job | unchanged | Mid-term |
-| Guest RAM | 12 GB | swap 5.7 GiB | swap 7.9 GiB (full); 09-26: 5.1 GiB, not thrashing; 09-27: lowered to 11 GB, 4–5 GiB cold swap, no active swapping; 10-03: RAM + swap full, VM unreachable, Ollama capped afterwards | Watch |
-| Guest agent | on | inactive | 09-26: on, both sides | ✅ |
+- ✅ Remote development over SSH (VS Code Remote-SSH).

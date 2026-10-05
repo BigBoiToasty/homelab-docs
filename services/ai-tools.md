@@ -25,8 +25,6 @@
 
 ## Ollama on the GPU
 
-Fixed 2026-09-26. Before that, Ollama ran on the CPU (the old driver 535 was too old for it), and one request took about 5 minutes.
-
 | | Now |
 |---|---|
 | Driver | NVIDIA 615 from NVIDIA's own apt repo (`cuda-drivers-580` pulls in the newest `nvidia-driver`) |
@@ -38,11 +36,9 @@ Fixed 2026-09-26. Before that, Ollama ran on the CPU (the old driver 535 was too
 
 **Why keep-alive is `-1`:** n8n polls Gmail every 15 minutes. Any keep-alive shorter than that unloads the model between polls, and every run then pays a 10–60 s reload. With the model always loaded, a request is answered almost instantly. The idle GPU still drops to ~15 W.
 
-**When to lower it:** if Immich's machine learning moves to the GPU, a bigger model is added, or the game-streaming plans (phases 3.1/3.3) start using the GPU, set it to about `20m` (just longer than the poll interval) so the 5.4 GB is freed when idle.
-
 After editing the compose file, run `docker compose up -d` in `~/docker/ai-tools`. A plain restart keeps the old settings.
 
-**If Ollama or Jellyfin won't start** with `could not select device driver "nvidia"`: the NVIDIA Container Toolkit is missing. That happened on 2026-09-26: `apt-get purge ... libnvidia-*` also matched `libnvidia-container1` and removed the toolkit with the old driver. Fix: `apt install nvidia-container-toolkit`, `nvidia-ctk runtime configure --runtime=docker`, `systemctl restart docker`.
+**If Ollama or Jellyfin won't start** with `could not select device driver "nvidia"`: the NVIDIA Container Toolkit is missing; see the 2026-09-26 entry in the [incident log](../runbooks/incident-log.md).
 
 **Harmless kernel messages when the model loads.** Each time the model loads (for example after a VM reboot), `journalctl -k` shows a burst of `NVRM: ... Out of memory [NV_ERR_NO_MEMORY]` and `Allocation failed with big page size, retrying with default page size`. The driver couldn't get one large block of system RAM, retried with small pages and succeeded; `ollama ps` still shows `100% GPU`. Seen 2026-09-27 13:15, together with ~1 GB of cold pages moving to swap while the 5.4 GB model file was read. They are not OOM kills (`grep oom_kill /proc/vmstat` stays 0).
 
@@ -52,20 +48,9 @@ Ollama's `llama-server` keeps a prompt cache in **system RAM** (default up to 8 
 
 Still open: `OLLAMA_MAX_LOADED_MODELS=1`.
 
-## Stirling-PDF heap dumps (cleared)
+## Stirling-PDF memory
 
-The earlier docs called the 7.6 GB under `/mnt/tank/stirling-pdf` OCR training data. It isn't: `trainingData` is empty. The space is **33 Java heap dumps (~248 MB each)** written 2026-09-12 → 09-14. Each dump means Stirling ran out of heap memory, crashed and restarted. The default heap is ~256 MiB (a quarter of the 1 GiB cap), and that proved too small. No new dumps have appeared since 2026-09-14. **By 2026-10-04 the folder was empty** (all of `/mnt/tank/stirling-pdf` is under 1 MB), most likely cleared when the container was updated or recreated.
-
-| | Intended | Actual |
-|---|---|---|
-| Container limit | 512 MiB | 1 GiB |
-| Java heap | `-Xms64m -Xmx256m` | image default (~256 MiB); heap dumps **off** since 2026-10-04 |
-| State | running | running, healthy, ~370 MiB |
-
-Heap dumps are turned off (`JAVA_CUSTOM_OPTS=-XX:-HeapDumpOnOutOfMemoryError`, 2026-10-04).
-
-
-Because Stirling has no login, anyone on the tailnet or LAN can use it. That's fine while you're the only user.
+1 GiB container limit, default Java heap (~256 MiB), heap dumps turned off (`JAVA_CUSTOM_OPTS=-XX:-HeapDumpOnOutOfMemoryError`). History: [incident log](../runbooks/incident-log.md).
 
 ## Backups
 

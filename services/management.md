@@ -19,12 +19,7 @@
 
 ## Vaultwarden
 
-**Why it "didn't work" (fixed 2026-09-25).** Two separate problems:
-
-1. **No way in.** `DOMAIN` was `https://vaultwarden.example.com`, but that name had no DNS record and no nginx site, and Bitwarden clients require HTTPS. Fixed with `add-site.sh vaultwarden 8222 --max-body 525M` plus a Cloudflare **A** record → Tailscale IP (DNS only).
-2. **The vault "reset" on 2026-09-08.** The `management` stack was recreated with its data path changed from `/root/docker/media/config/vaultwarden` to `/docker/media/config/vaultwarden`, a new empty folder. The server started as a fresh install (0 accounts). The real vault (1 account, 4 items, last change 2026-08-26) stayed in the old folder, and clients kept working only from their offline cache, unable to save. Fixed by copying the old data into the live path. Backups of both versions: `/root/vaultwarden-backup-20260925-1737/`. The empty folder was kept as `/docker/media/config/vaultwarden.empty-20260925`, and the old folder is still in place (delete both only once real backups exist).
-
-Afterwards `SIGNUPS_ALLOWED` was set to `false` (compose backup: `docker-compose.yml.bak-20260925`).
+Served at `https://vaultwarden.example.com` (tailnet-only); sign-ups are off. The vault was restored on 2026-09-25 after the 2026-09-08 data-path reset ([incident log](../runbooks/incident-log.md)).
 
 This is the highest-value data in the stack. `db.sqlite3` and `rsa_key.pem` are dumped nightly ([app dumps](../runbooks/maintenance.md#nightly-app-database-dumps)); without the RSA key every client must log in again.
 

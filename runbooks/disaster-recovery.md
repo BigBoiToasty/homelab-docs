@@ -120,7 +120,7 @@ Only when no VM backup exists. Order matters; each step depends on the previous.
    chown -R 1000:1000 /srv/games/minecraft /docker/media/config /mnt/tank/media   # PUID/PGID 1000 = the primary login user
    ```
 
-   Prefer to mount `/docker` and `/mnt/tank` from dedicated disks/exports at this point (see [architecture/host-and-vm.md → Recommended storage alignment](../architecture/host-and-vm.md#recommended-storage-alignment)) instead of recreating them on the root disk.
+   Mount the data disk at `/mnt/tank` and the photo-copy disk at `/mnt/photo-copy` before restoring data ([disk layout](../architecture/host-and-vm.md#disks-and-storage)).
 7. **Stacks:** clone or copy `~/docker` (compose files + `.env` files restored from the secrets store, then `chmod 600` them), `~/Mush`, and `~/docker/supabase-service`. Restore data into the directories from §3. Bring up in dependency order:
 
    ```bash
@@ -182,7 +182,7 @@ Only when no VM backup exists. Order matters; each step depends on the previous.
 | VM boots but `nvidia-smi` fails | Passthrough not restored, host grabbed the GPU, or driver mismatch | host: `lspci -k -s <id>` shows `vfio-pci`?; guest: `dmesg \| grep -i nvidia` | Re-add `hostpci0`; blacklist on host; reinstall guest driver |
 | Ollama slow, `library=cpu` in logs | Guest driver too old, or GPU not passed to the container | `docker logs ollama \| grep "inference compute"`; `docker exec ollama nvidia-smi -L` | Driver ≥ 550 (615 installed 2026-09-26); container needs the GPU request in compose |
 | Ollama/Jellyfin `Exited (255)` after a reboot: `could not select device driver "nvidia"` | NVIDIA Container Toolkit missing (e.g. removed by `apt purge libnvidia-*`) | `docker inspect <c> -f '{{.State.Error}}'`; `which nvidia-ctk` | `apt install nvidia-container-toolkit`, `nvidia-ctk runtime configure --runtime=docker`, `systemctl restart docker` |
-| Minecraft shows a brand-new world | Server's `/data` points at a folder with no `world/` (happened 2026-09-24) | `docker inspect minecraft` mounts; `find / -xdev -name level.dat` | Stop, copy the real `world/` into the mounted folder, start; see [gaming.md](../services/gaming.md#the-sep-2426-world-mix-up-what-happened-and-how-to-avoid-it) |
+| Minecraft shows a brand-new world | Server's `/data` points at a folder with no `world/` (happened 2026-09-24) | `docker inspect minecraft` mounts; `find / -xdev -name level.dat` | Stop, copy the real `world/` into the mounted folder, start; see [gaming.md](incident-log.md) |
 | Container `Exited (137)`, `OOMKilled=false` | SIGKILL after `docker stop` grace period | `docker inspect -f '{{.State}}'`; `journalctl -k \| grep -i oom` | Raise `stop_grace_period`; investigate why the process ignores SIGTERM (Stirling: JVM + unoserver) |
 | Container `Exited (137)`, `OOMKilled=true` | Hit cgroup memory cap | `docker stats`, `dmesg` | Raise `memory` or lower JVM `-Xmx` |
 | Whole guest sluggish, `si/so` in `vmstat 1` non-zero | Swap thrash: a process without a cap grew (2026-10-03: Ollama's prompt cache, plus leftover Chrome) | `free -h`, `cat /proc/pressure/memory`, `ps -eo rss,comm --sort=-rss \| head` | Check `LLAMA_ARG_CACHE_RAM` and the Ollama cap are still set; close old Claude/Chrome sessions; reduce Minecraft `MAX_MEMORY` |
@@ -228,7 +228,7 @@ flowchart LR
 
 ### 5.2 Implementation checklist
 
-- [x] **Hypervisor:** vzdump job for VM 100 to `hddpool-backups` (snapshot, zstd, 05:00, keep-last 7, 50 MiB/s limit). First good run 2026-09-27; settings and pitfalls in [host-and-vm.md](../architecture/host-and-vm.md#vm-100-backup-working-since-2026-09-27). Data disk `refreservation=none` (checked 2026-09-28). Still open: one test restore.
+- [x] **Hypervisor:** vzdump job for VM 100 to `hddpool-backups` (snapshot, zstd, 05:00, keep-last 7, 50 MiB/s limit). First good run 2026-09-27; settings and pitfalls in [host-and-vm.md](../architecture/host-and-vm.md#vm-100-backup). Data disk `refreservation=none` (checked 2026-09-28). Still open: one test restore.
 - [ ] **Hypervisor:** enable `zfs-auto-snapshot` or sanoid on `fastpool/vm-100-disk-1` and, after the storage realignment, on `fastpool/appdata`.
 - [ ] **Guest:** export `hddpool/backups` via NFS from PVE (or attach a second disk) and mount it at `/mnt/backups`; re-point `mc-backup` `/backups` and the Terraria cron there.
 - [x] **Guest:** fix the Terraria cron: `-C /srv/games/terraria` (done).

@@ -6,6 +6,7 @@ Step-by-step guides. Pick the one that matches your situation:
 |---|---|
 | Routine upkeep: health check, updates, adding a site, certificates, VNC, refreshing the docs | [maintenance.md](maintenance.md) |
 | After a reboot | [maintenance.md → After a reboot](maintenance.md#after-a-reboot) |
+| Has this happened before? Past problems, causes and fixes | [incident-log.md](incident-log.md) |
 | Something is broken (a container, a site, the VM) | [disaster-recovery.md §4 troubleshooting](disaster-recovery.md#4-failure-troubleshooting-matrix) |
 | Restoring one app's data | [disaster-recovery.md §3](disaster-recovery.md#3-per-service-data-recovery) |
 | The VM or the Proxmox host is gone | [disaster-recovery.md §1–2](disaster-recovery.md#1-bare-metal-proxmox-rebuild) |

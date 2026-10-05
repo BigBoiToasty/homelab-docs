@@ -42,11 +42,7 @@ On 2026-09-25 the VM ran out of memory (7.9 of 8 GB swap). Immich is now capped 
 
 The caps (Minecraft 5 G, Immich 4 G + 2 G, Terraria 2 G, Ollama 3 G, n8n 1 G, Stirling 1 G, mc-backup 512 M) add up to 18.5 GiB, more than the VM has. That works only because they rarely peak together. Cheapest way to get headroom: lower Minecraft's cap to ~3 GiB. The host has only 16 GB, so the real long-term fix is a RAM upgrade ([roadmap](../roadmap/ROADMAP.md)).
 
-### 2026-10-03: the VM ran out of memory
-
-RAM and swap filled up (mainly Ollama's prompt cache, plus leftover Chrome and old Claude sessions), Tailscale stopped responding, and the VM had to be restarted from Proxmox. Claude Code's automatic update failed during it and had to be reinstalled.
-
-Fixes: Ollama's cache and container are capped ([ai-tools](ai-tools.md#ollama-prompt-cache)), `tailscaled` and `sshd` have reserved memory, and the Tailscale watchdog no longer restarts it when memory is the problem ([networking](../architecture/networking-and-security.md#23-tailscale-mesh)).
+Past memory problems (2026-09-25, 2026-10-03) and their fixes: [incident log](../runbooks/incident-log.md).
 
 ## Where data lives
 

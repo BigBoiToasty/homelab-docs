@@ -35,14 +35,7 @@ Both backup folders are inside the same VM, so they don't protect against losing
 
 Restoring: [runbooks/disaster-recovery.md §3](../runbooks/disaster-recovery.md#3-per-service-data-recovery).
 
-## The Sep 24–26 world mix-up (what happened, and how to avoid it)
-
-- **2026-09-24, 13:31:** the server files were moved into a new `/srv/games/minecraft/data/` folder, and the compose volume was changed to match. The `world/` folder was left behind one level up. Minecraft found no world at 13:32 and **quietly generated a new one**. Players joined a different map.
-- `mc-backup` still read the parent folder, so its archives held both worlds and nothing looked broken.
-- **2026-09-26:** the original world (last saved 2026-09-24 13:18) was copied into `data/world`, and the server loaded it. `mc-backup` now reads `data/`. The old top-level files were archived and then deleted.
-- **Safety copies** in `/mnt/tank/backups/minecraft-restore-2026-09-26/`: `original-world.tar.gz` and `old-toplevel-files-before-sep24.tar.gz`. They can be deleted once nobody needs them.
-
-**When moving a game server's folder:** stop the server, copy the **whole** folder (check that `world/` or the `.wld` file came along), change the server's **and** the backup's paths together, start it, then check the log. It should say it is loading the existing world, and the world size should match.
+The 2026-09-24 world mix-up and how to move a server folder safely: [incident log](../runbooks/incident-log.md).
 
 ## Why Minecraft is tuned this way (5 GiB cap, `-Xms1G -Xmx4G`)
 
