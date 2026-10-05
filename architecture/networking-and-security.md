@@ -45,7 +45,11 @@ How it is wired:
 - The host-native nginx package is still installed but `inactive` and `disabled`. Remove it, or leave it disabled so it never races the container for :80/:443.
 - `nginx -t` inside the container passes.
 
-**Certificates:** four Let's Encrypt certificates exist: a wildcard (`example.com`, `*.example.com`) plus `mush`, `n8n`, and a `supabase`+`n8n` SAN cert, expiring 2026-11-26 to 2026-12-23. `/etc/letsencrypt` is bind-mounted read-only into `nginx-proxy`. Two certbot installs are present, each with its own renewal timer: apt certbot 2.1.0 (`certbot.timer`) and the snap with `certbot-dns-cloudflare` (`snap.certbot.renew.timer`). Keep the snap, `apt purge certbot`, and after each renewal reload nginx with a deploy hook (`docker exec nginx-proxy nginx -s reload`). Without that hook, the container keeps serving the old certificate until it restarts.
+**Certificates (checked 2026-10-04):** all six sites use **one wildcard certificate** (`example.com`, `*.example.com`, valid to 2026-12-23). It renews through Cloudflare DNS (`dns-cloudflare`), which works without any open port. Every `ssl_certificate` line in `nginx-proxy` points at it, and each site was checked to serve it. `/etc/letsencrypt` is bind-mounted read-only into `nginx-proxy`.
+
+- **Reload hook (added 2026-10-04):** `/etc/letsencrypt/renewal-hooks/deploy/reload-nginx-proxy.sh` runs `nginx -t` and then `nginx -s reload` in the container after every renewal, so the new certificate is served right away. Both certbot installs use this hooks folder. Tested by running it by hand.
+- **Three unused leftovers:** separate `mush`, `n8n` and `supabase`+`n8n` certificates (expire 2026-11-26). Nothing serves them. The `n8n` one renews with `standalone` (port 80 from the internet), which can't work here, so certbot will log a failure for it from ~2026-10-27. Harmless; remove with `certbot delete --cert-name <name>` to silence it.
+- Two certbot installs, each with its own timer: apt certbot 2.1.0 (`certbot.timer`) and the snap 5.8.0 with `certbot-dns-cloudflare` (`snap.certbot.renew.timer`). Redundant but harmless; the snap is the one to keep.
 
 ### 2.2 Cloudflare Tunnel
 
@@ -230,14 +234,14 @@ Internal-only (exposed, not published): node_exporter `9100`, supabase-db `5432`
 | 6 | Medium | Secrets written literally in compose files: Gluetun `WIREGUARD_PRIVATE_KEY` (`media`), Minecraft/mc-backup `RCON_PASSWORD` and Playit `SECRET_KEY` (`gaming`) | Move to each project's `.env`, reference as `${VAR}`. |
 | 7 | Low (accepted 2026-10-04) | All `.env` files are mode `644` (world-readable), including Supabase's ~20 key-material values | Left as is (owner decision 2026-10-04): `644` only matters for other non-root accounts, and the only one is the owner's own; everyone else who logs in is root anyway. Revisit if other people get accounts. |
 | 8 | Medium | Vaultwarden `SIGNUPS_ALLOWED=true` on a LAN/tailnet-reachable port | Set `false` once accounts exist. |
-| 9 | Medium | 40 pending apt updates, no `unattended-upgrades`; cloudflared outdated with its update timer disabled | `apt install unattended-upgrades`; `systemctl enable --now cloudflared-update.timer`. |
+| 9 | Low | No `unattended-upgrades`. All 51 pending updates were installed 2026-10-04 (Docker 29.8.2, Tailscale 1.102.4, cloudflared 2026.9.3, kernel 6.1.0-53) | Install updates monthly (`apt update && apt full-upgrade`), or `apt install unattended-upgrades` for security updates. |
 | 10 | ~~Medium~~ Fixed | ~~Duplicate Playit agents (host + container)~~ | Host service disabled 2026-10-04. |
-| 11 | Low | Two certbot installs with two renewal timers, no nginx reload hook | Keep one; add a deploy hook that reloads `nginx-proxy`. |
+| 11 | Low | Two certbot installs with two renewal timers; three unused leftover certificates | Reload hook added 2026-10-04. Optional: `apt purge certbot` (keep the snap), `certbot delete` the three leftovers. |
 | 12 | Low | avahi and rpcbind listening with no consumer | `systemctl disable --now avahi-daemon rpcbind`. |
 | 13 | Medium | Minecraft is public via Playit with `online-mode=true` but **no whitelist** (0 entries, `enforce-whitelist=false`) and no ops | Set `ENABLE_WHITELIST=true`, `ENFORCE_WHITELIST=true` and `WHITELIST=<names>` in the `gaming` compose, then recreate. |
 | 14 | Medium | Terraria is public via Playit with **no server password** | Add `password=<YOUR_SECRET>` to `serverconfig.txt` (or the image's password variable). |
 | 15 | Low | Confirm in the Playit dashboard that only 25565 and 7777 are tunnelled, not RCON 25575 | Delete any other tunnels. |
-| 16 | Info | Accounts that control everything: the Tailscale login (joins the tailnet), the Cloudflare account and the Cloudflare API token in `~/docker/.env` (DNS + tunnel) | 2FA on both identity providers; scope the API token to `Zone:DNS:Edit` on one zone; `chmod 600` the `.env`; review the 5 tailnet devices. |
+| 16 | Info | Accounts that control everything: the Tailscale login (joins the tailnet), the Cloudflare account and the Cloudflare API token in `~/docker/.env` (DNS + tunnel) | 2FA: done (both log in with Google, which has 2-Step Verification; 2026-10-04). Still open: scope the API token to `Zone:DNS:Edit` on one zone; review the tailnet devices. |
 
 ### 6.3 Token scrubbing rules for this documentation
 

@@ -125,7 +125,7 @@ To remove a site: delete `~/docker/reverse-proxy/conf.d/<name>.conf`, run `docke
 ```bash
 certbot certificates                 # expiry dates
 certbot renew --dry-run              # proves renewal will work
-docker exec nginx-proxy nginx -s reload   # after any renewal, until the deploy hook exists
+# nginx reloads itself after a renewal (deploy hook since 2026-10-04)
 ```
 
 ## VNC desktop (Tailscale-only)

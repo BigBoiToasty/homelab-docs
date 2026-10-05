@@ -27,16 +27,17 @@ Things that can lose data or are one-line fixes.
 - [ ] **Reseat the 256 GB M.2 SSD in the Proxmox host.** It shows 77 connection (CRC) errors and 2241 power cycles in 2031 hours, a sign of a loose connection; the flash itself is healthy. Shut down, unplug, reseat, tighten the screw. Then recheck `smartctl -a /dev/sda | grep -iE "crc|power_cycle"` every few days: if the numbers still climb, plan a replacement. → [host-and-vm.md](../architecture/host-and-vm.md#proxmox-host)
 - [ ] **Off-site copy** of the photos and `/root/backups/app-dumps` (Backblaze B2 ≈ $0.30/month for 48 GB with restic, or the Windows desktop over Tailscale). Protects against fire/theft/surge, which take out both pools.
 - [ ] **Lock the public game servers.** Minecraft whitelist on (`ENABLE_WHITELIST`, `ENFORCE_WHITELIST`, `WHITELIST=`); Terraria server password; in the Playit dashboard, confirm only 25565 and 7777 are tunnelled. → [services/gaming.md](../services/gaming.md#who-can-reach-it)
-- [ ] **2FA on the Tailscale and Cloudflare logins**; review the 5 tailnet devices. These accounts control everything. → [networking-and-security.md §6](../architecture/networking-and-security.md#6-security-posture)
+- [ ] **Review the tailnet devices** in the Tailscale admin console (Machines): remove any you don't recognize, such as a phone from another account that was offline for 8+ days on 2026-10-03.
 - [ ] **Scope the Cloudflare API token** to DNS-edit on one zone.
 
 ## 🟡 Mid-term infrastructure upgrades
 
-- [ ] **Certificates: finish the automation.** Renewal already runs automatically, but there are two certbot installs (apt + snap) and nothing reloads nginx afterwards, so the container would keep serving an old certificate. Keep the snap, `apt purge certbot`, add a deploy hook `docker exec nginx-proxy nginx -s reload`. → [networking-and-security.md §2.1](../architecture/networking-and-security.md#21-private-https-via-nginx-proxy-tailnet-only-by-dns)
+- [ ] **Optional certificate tidy-up.** Renewal and the nginx reload are automatic now. Left: `certbot delete` the three unused leftover certificates (one will log renewal failures from ~2026-10-27) and `apt purge certbot` (keep the snap). → [networking-and-security.md §2.1](../architecture/networking-and-security.md#21-private-https-via-nginx-proxy-tailnet-only-by-dns)
 - [ ] **Local DNS with Pi-hole or AdGuard Home** (optional). Today the public DNS records point at the Tailscale IP, which works but shows your tailnet address to anyone who looks it up. A local DNS server (or Tailscale split DNS) could answer `*.example.com` privately instead.
 - [ ] **Finish monitoring.** Prometheus + Grafana + Uptime-Kuma already run, but only VM-level metrics exist and there are no alerts. Add cAdvisor (per-container RAM/CPU) and alerts for swap > 80 %, disk > 85 %, hddpool > 80 % (it's overcommitted once the backup job exists), unhealthy containers and backups older than 26 h. → [services/management.md](../services/management.md#monitoring-gaps)
 - [ ] **Optional: Immich machine learning on the GPU** (`-cuda` image). It would have to share the 8 GB with Ollama; lower Ollama's keep-alive to `20m` first. → [services/ai-tools.md](../services/ai-tools.md#ollama-on-the-gpu)
-- [ ] **Patching:** install `unattended-upgrades` (50 updates pending), enable `cloudflared-update.timer`, and `docker compose pull` monthly, starting with the internet-facing ones (portfolio nginx, Minecraft, Playit).
+- [ ] **Reboot the VM once** to start the new kernel 6.1.0-53 (installed 2026-10-04; the NVIDIA driver is already built for it). Afterwards check `docker exec ollama ollama ps` shows `100% GPU` after the first request.
+- [ ] **Patching from now on:** `apt update && apt full-upgrade` monthly (or `unattended-upgrades`), and `docker compose pull` for the internet-facing containers (portfolio nginx, Minecraft, Playit).
 - [ ] **LAN hardening (optional, if you ever share your network):** bind admin ports (Ollama 11434, Postgres 5432/6543, RCON 25575, dashboards) to `127.0.0.1` or the Tailscale IP, like VNC. Also: n8n back to `127.0.0.1:5678`, Homepage's Docker socket to `:ro`, SSH keys instead of the root password.
 - [ ] **Start VNC at boot:** turn `vnc-tailscale.sh` (and Xvfb) into systemd services.
 
@@ -55,6 +56,8 @@ Things that can lose data or are one-line fixes.
 
 ## ✅ Done
 
+- ✅ All 51 OS updates installed: Docker 29.8.2, Tailscale 1.102.4, cloudflared 2026.9.3, kernel 6.1.0-53 (needs a reboot). Every container came back healthy (2026-10-04).
+- ✅ 2FA: Tailscale and Cloudflare are both logged into with Google, and the Google account has 2-Step Verification (confirmed by the owner 2026-10-04). If Cloudflare ever gets its own password, turn on Cloudflare's 2FA too.
 - ✅ Duplicate Playit agent removed: the host `playit.service` and the container shared one secret and kept knocking each other off; only the container runs now (2026-10-04).
 - ✅ Stirling-PDF heap dumps gone and turned off (`JAVA_CUSTOM_OPTS=-XX:-HeapDumpOnOutOfMemoryError`, 2026-10-04).
 - ✅ Docker log rotation set in `daemon.json` (10 MB × 3), active from the next Docker start / container recreate (2026-10-04).
@@ -84,7 +87,7 @@ Things that can lose data or are one-line fixes.
 - ✅ Root disk grown 102 → 502 GB, plus a 1.5 TB data disk (was 88 % full).
 - ✅ `pdf.example.com` has HTTPS.
 - ✅ Immich deployed.
-- ✅ Automatic certificate renewal (certbot timers). *Reload hook still missing; see mid-term.*
+- ✅ Automatic certificate renewal (certbot timers) and nginx reload hook (2026-10-04). All sites use one wildcard certificate.
 - ✅ Monitoring stack running (Prometheus, Grafana, Uptime-Kuma). *Alerts still missing; see mid-term.*
 - ✅ Stirling-PDF, Gluetun VPN kill switch, Minecraft (tuned Paper) and Terraria servers, Playit tunnels.
 

@@ -87,7 +87,7 @@ To regenerate this table from the live system: the audit script's "Where contain
 
 ## Docker engine settings
 
-- `/etc/docker/daemon.json` registers the `nvidia` runtime and, since 2026-10-04, rotates logs: `json-file` with `max-size 10m`, `max-file 3` (backup: `daemon.json.bak-20261004`). Docker reads the file only when it starts, and the setting applies only to containers created after that. So it takes effect at the next VM reboot or `systemctl restart docker`, and each container gets it the next time it's recreated (`docker compose up -d` after a change or `pull`). The largest container log was 118 MB when this was set.
+- `/etc/docker/daemon.json` registers the `nvidia` runtime and, since 2026-10-04, rotates logs: `json-file` with `max-size 10m`, `max-file 3` (backup: `daemon.json.bak-20261004`). Docker reads the file only when it starts, and the setting applies only to containers created after that. Docker was restarted by the 2026-10-04 update, so the daemon uses it now, and each container gets it the next time it's recreated (`docker compose up -d` after a change or `pull`). The largest container log was 118 MB when this was set.
 - NVIDIA container toolkit 1.20.1, driver 615. Containers get the GPU through the toolkit. If it's missing, GPU containers fail to start with `could not select device driver "nvidia"` ([ai-tools](ai-tools.md#ollama-on-the-gpu)).
 - 38 images (38.1 GB, nothing to prune). Named volumes use 1.05 GB.
 - Only Supabase and Immich pin image versions; everything else uses `:latest`, so updates happen whenever you `docker compose pull`.

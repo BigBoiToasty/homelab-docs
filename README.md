@@ -3,11 +3,10 @@
 **Last updated:** 2026-10-04
 
 **What changed:**
-- Only one Playit agent runs now. Two copies with the same key kept knocking each other off, which can drop players from the game servers. [Details](architecture/networking-and-security.md#24-game-traffic-via-playitgg).
-- Stirling-PDF no longer writes heap dumps when it crashes (the old 7.6 GB of them were already gone).
-- Docker container logs are capped at 3 × 10 MB, from the next Docker restart.
-- The Immich photos are copied nightly to their own disk on the SSD pool, and the app databases are dumped nightly. [Details](runbooks/maintenance.md#nightly-immich-photo-copy).
-- The host's 256 GB M.2 SSD needs reseating (connection errors, flash healthy). See the [roadmap](roadmap/ROADMAP.md).
+- All 51 pending OS updates installed (Docker, Tailscale, Cloudflare tunnel, kernel). Every service came back healthy. The new kernel starts at the next reboot; the NVIDIA driver is already built for it.
+- Certificates: all sites use one wildcard certificate, and nginx now reloads automatically after each renewal. Three old unused certificates are left over. [Details](architecture/networking-and-security.md#21-private-https-via-nginx-proxy-tailnet-only-by-dns).
+- 2FA: Tailscale and Cloudflare log in with Google, which has 2-Step Verification.
+- Earlier on 2026-10-04: one Playit agent instead of two, nightly photo copy and database dumps, Stirling heap dumps off, Docker log rotation.
 
 ## Where to find what
 
@@ -79,14 +78,14 @@ Details: [architecture/networking-and-security.md](architecture/networking-and-s
 | Backups | 🟡 on-site only | Nightly VM backup (05:00), app database dumps (04:40), photo copy on fastpool (04:10), game worlds; **nothing off-site**; no test restore yet |
 | Public exposure | 🟡 small | Portfolio + game servers (game servers have no whitelist/password) |
 | GPU | 🟢 in use | Ollama (5.4 of 8 GB VRAM) and Jellyfin; driver 615 |
-| Updates | 🟡 50 OS updates pending | No automatic updates |
+| Updates | 🟢 up to date (2026-10-04) | New kernel 6.1.0-53 waits for a reboot; no automatic updates |
 | Guest agent | 🟢 on | On in Proxmox and in the VM; CPU type `host` |
 
 ## 📌 Current Focus & Roadmap
 
 - 🔴 **In Progress:** Test-restore the VM 100 backup once; watch VM memory after the 2026-10-03 incident.
 - 🟠 **Urgent:** Reseat the host's M.2 SSD; lock the public game servers (whitelist / password); off-site copy of photos and dumps.
-- 🟡 **Next Up:** 2FA on the Tailscale and Cloudflare logins, test-restore the VM backup, tune Immich background jobs.
+- 🟡 **Next Up:** Test-restore the VM backup, review the tailnet devices, tune Immich background jobs.
 - 📋 **Full List:** See [roadmap/ROADMAP.md](roadmap/ROADMAP.md) for detailed task tracking and future architecture plans.
 
 ## Keeping these docs current
