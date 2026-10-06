@@ -1,6 +1,6 @@
 # Roadmap
 
-> Planned work, tech debt and wishlist for the homelab. Last updated 2026-10-05.
+> Planned work, tech debt and wishlist for the homelab. Last updated 2026-10-06.
 > Each task says **why** it matters and links to where the details live. Tick the box when done and move the line to [Done](#-done). Problems and their fixes are in the [incident log](../runbooks/incident-log.md).
 
 **Legend:** 🔴 in progress · 🟠 urgent (risk of losing data) · 🟡 soon · ⚪ someday · ✅ done
@@ -47,6 +47,7 @@ Play Sekiro and Ghost of Tsushima from the server on the Retroid Pocket Flip 2 (
 
 - [ ] Web terminals (ttyd sidecars) and embedded game terminals. *(phases 3.4, 5.3)*
 - [ ] Heavy local AI workstation (RX 9070 XT). *(phase 4.1)*
+- [ ] **Job-application agent on the RX 9070 XT:** a local model (14B-class, or gpt-oss-20b) behind Hermes Agent or Playwright MCP finds postings, fills Workday-style forms and drafts answers; I review and press Submit myself.
 - [ ] Wake-on-LAN remote desktop power management. *(phase 4.2)*
 - [ ] Custom React dashboard with live service integration (Mush + Supabase). *(phases 5.1–5.2)*
 
