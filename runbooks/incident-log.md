@@ -6,6 +6,12 @@ Everything that has gone wrong, newest first: what it looked like, why it happen
 
 ---
 
+### 2026-10-05 · VM stuck in Emergency Mode after reboot ✅
+- **Symptom:** after the 09:01 reboot into kernel 6.1.0-53, the VM was off the tailnet all day; the noVNC console showed the emergency shell. Back up at 23:24 after a reboot from the console.
+- **Cause:** the VM named its disks in a different order that boot (system disk `sdb`, photo disk `sda`). `/etc/fstab` mounted `/mnt/tank` by the name `/dev/sdb` with no `nofail`, so the mount failed (`already mounted or mount point busy`) and boot stopped in Emergency Mode before the network came up. No data was affected.
+- **Fix (2026-10-06):** the `/mnt/tank` line in `/etc/fstab` now uses the disk's UUID and `nofail`, like the root and photo-copy disks. Old file kept at `/etc/fstab.bak-2026-10-05`.
+- **If it comes back:** `journalctl -b -1 | grep -iE "emergency|Failed to mount"`; every fstab data-disk line should use `UUID=` and `nofail`.
+
 ### 2026-10-04 · Two Playit agents fighting ✅
 - **Symptom:** random disconnects on the game servers; the agent logged `timeout waiting for register response`, `failed to authenticate`, `control session expired; reconnecting`.
 - **Cause:** the host `playit.service` and the `playit` container used the same secret, so Playit saw one agent logging in from two places.

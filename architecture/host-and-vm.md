@@ -123,7 +123,7 @@ flowchart LR
 ```
 
 - **Boot disk `sda` (502 GB, 15 % used):** OS, Docker, all databases, app configs, game worlds, swap. It grew from 102 GB after the first inspection, so the old "88 % full" problem is gone.
-- **Data disk `sdb` (1.5 TB, ext4 with `discard`, mounted at `/mnt/tank`, created 2026-09-24):** a virtual disk on **hddpool** (the HDDs), confirmed by the owner. Holds bulk files: Immich photos, Stirling data, media, and the in-VM backups.
+- **Data disk `sdb` (1.5 TB, ext4 with `discard`, mounted at `/mnt/tank` by UUID with `nofail`, created 2026-09-24):** the `sda`/`sdb` names can swap between boots, so fstab never uses them ([incident 2026-10-05](../runbooks/incident-log.md#2026-10-05--vm-stuck-in-emergency-mode-after-reboot-)). a virtual disk on **hddpool** (the HDDs), confirmed by the owner. Holds bulk files: Immich photos, Stirling data, media, and the in-VM backups.
 - **Photo-copy disk `sdc` (150 GB, ext4 with `discard`, mounted at `/mnt/photo-copy` by UUID with `nofail`, added 2026-10-04):** a virtual disk on **fastpool** (the SSDs) that holds only the nightly copy of the Immich photos ([nightly photo copy](../runbooks/maintenance.md#nightly-immich-photo-copy)). Its *Backup* box is unchecked in Proxmox, so the nightly VM backup doesn't grow by 48 GB.
 - **Not attached as datasets:** `hddpool/media`, `hddpool/backups`, `fastpool/photos`, `fastpool/appdata`. Media and backups already live on the HDDs through `sdb`, so that goal is met. There are no ZFS/NFS mounts inside the VM. `/mnt/media` and `/mnt/photos` are empty folders on the boot disk, prepared but never used.
 
