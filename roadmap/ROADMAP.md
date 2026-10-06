@@ -47,7 +47,7 @@ Play Sekiro and Ghost of Tsushima from the server on the Retroid Pocket Flip 2 (
 
 - [ ] Web terminals (ttyd sidecars) and embedded game terminals. *(phases 3.4, 5.3)*
 - [ ] Heavy local AI workstation (RX 9070 XT). *(phase 4.1)*
-- [ ] **Job-application agent on the RX 9070 XT:** a local model (14B-class, or gpt-oss-20b) behind Hermes Agent or Playwright MCP finds postings, fills Workday-style forms and drafts answers; I review and press Submit myself.
+- [ ] **Job-application agent on the RX 9070 XT:** the PC serves a local model over Tailscale; Hermes Agent runs on the VM inside the existing career-ops folder, so it and Claude Code share one tracker, CV and profile. It fills Workday-style forms and drafts answers; I review and press Submit myself.
 - [ ] Wake-on-LAN remote desktop power management. *(phase 4.2)*
 - [ ] Custom React dashboard with live service integration (Mush + Supabase). *(phases 5.1–5.2)*
 
