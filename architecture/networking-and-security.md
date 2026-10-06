@@ -211,7 +211,7 @@ Internal-only (exposed, not published): node_exporter `9100`, supabase-db `5432`
 
 | # | Severity | Finding | Fix |
 |---|---|---|---|
-| 1 | Accepted | `sshd` allows root login with a password (no SSH keys) | The Proxmox console is an equal way in, and both are reachable only from the family LAN or Tailscale (Google 2FA) (owner, 2026-10-05). If more protection is wanted: 2FA on the Proxmox login first; keep the Proxmox and VM root passwords strong and different. |
+| 1 | Accepted | `sshd` allows root login with a password (no SSH keys) | The Proxmox console is an equal way in, and both are reachable only from the family LAN or Tailscale (Google 2FA) (owner, 2026-10-05). Proxmox 2FA also declined: only the owner and family are on the tailnet (owner, 2026-10-06). Keep the Proxmox and VM root passwords strong and different. |
 | 2 | Accepted | No host firewall; many admin ports (Ollama, Postgres, RCON, dashboards) listen on the LAN | Not needed while only family uses the home Wi-Fi (owner, 2026-10-04). If that changes: guest Wi-Fi for visitors, or bind ports to `127.0.0.1`/the tailnet IP. |
 | 3 | Accepted | n8n listens on `0.0.0.0:5678` instead of `127.0.0.1` | Same reason as #2. |
 | 4 | Medium | `homepage` mounts the Docker socket **read-write** | Add `:ro`. |
