@@ -6,7 +6,12 @@ Everything that has gone wrong, newest first: what it looked like, why it happen
 
 ---
 
-### 2026-10-05 · VM stuck in Emergency Mode after reboot ✅
+### 2026-10-06 · Power outage 🟡
+- **Symptom:** the house lost power at about 23:43; the Proxmox host and the desktop turned off instantly. Everything came back on its own when power returned; the VM was up at 00:05.
+- **Cause:** power cut; there is no UPS.
+- **Checked (2026-10-07):** on the VM, all 40 containers were healthy with no failed units; `/mnt/tank` and `/mnt/photo-copy` replayed their ext4 journals and came up clean with 0 errors; `immich_postgres` logged `not properly shut down; automatic recovery` and recovered; no container logged corruption; Ollama 100% on GPU. On the host, all 14 drives `PASSED` SMART and `zpool status -x` said all pools are healthy. M.2 SSD `/dev/sda` still has 77 CRC errors (same as [2026-10-04](#2026-10-04--m2-ssd-connection-errors-)).
+- **Being watched:** `/dev/sdj` has 2 `Current_Pending_Sector` (the two drives of the same model have 0). A long self-test (`smartctl -t long /dev/sdj`) decides it: pending back to 0 with `Reallocated_Sector_Ct` 0 means the power cut caused it; pending still above 0 or reallocated rising means replace the drive.
+- **If it comes back:** `journalctl -b -1 -n 5` on the VM shows when it lost power; `docker logs immich_postgres 2>&1 | grep -i recovery`; `dumpe2fs -h /dev/sdX | grep -i state` on each data disk; on the host, `for d in /dev/sd? /dev/nvme?n1; do echo "== $d"; smartctl -H -A $d | grep -iE "result|Reallocated_Sector|Pending|Offline_Uncorrect|CRC_Error"; done; zpool status -x`. in Emergency Mode after reboot ✅
 - **Symptom:** after the 09:01 reboot into kernel 6.1.0-53, the VM was off the tailnet all day; the noVNC console showed the emergency shell. Back up at 23:24 after a reboot from the console.
 - **Cause:** the VM named its disks in a different order that boot (system disk `sdb`, photo disk `sda`). `/etc/fstab` mounted `/mnt/tank` by the name `/dev/sdb` with no `nofail`, so the mount failed (`already mounted or mount point busy`) and boot stopped in Emergency Mode before the network came up. No data was affected.
 - **Fix (2026-10-06):** the `/mnt/tank` line in `/etc/fstab` now uses the disk's UUID and `nofail`, like the root and photo-copy disks. Old file kept at `/etc/fstab.bak-2026-10-05`.
