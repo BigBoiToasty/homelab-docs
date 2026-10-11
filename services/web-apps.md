@@ -9,6 +9,8 @@
 | portfolio-web | `~/docker/portfolio` | `nginx:alpine` | 8090→80 | `~/docker/portfolio/repo/dist` | **Internet:** apex `https://example.com` via Cloudflare Tunnel |
 | portfolio-build | `~/docker/portfolio` | `node:20-alpine` | — | one-shot build that produces `repo/dist` | — |
 
+Mush is a PWA that caches itself. After a DNS or backend change, a phone can keep the old copy and old DNS answer (empty card slots, no Turnstile box): toggle airplane mode and clear the site's data, or test in a private tab (2026-10-11).
+
 ## Updating
 
 **The portfolio updates itself** (since 2026-09-29). Every 5 minutes root's cron runs `/usr/local/bin/portfolio-update.sh`. When GitHub's `main` has a new commit, it resets `~/docker/portfolio/repo` to match GitHub exactly and runs the build container. nginx serves `repo/dist` directly, so no restart is needed. A push is live within ~5 minutes; the build takes seconds, and the site may show errors while it runs.

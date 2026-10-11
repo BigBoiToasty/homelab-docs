@@ -38,7 +38,7 @@ Play Sekiro and Ghost of Tsushima from the server on the Retroid Pocket Flip 2 (
 
 - [ ] **Pi-hole as the tailnet's DNS** for ad blocking, after monitoring alerts exist.
 - [ ] **Monitoring alerts to Discord** (memory, swap, disk, services down, failed nightly backups). Waiting on a Discord webhook. → [services/management.md](../services/management.md#monitoring-gaps)
-- [ ] **Patching from now on:** `apt update && apt full-upgrade` monthly (or `unattended-upgrades`), and `docker compose pull` for the internet-facing containers (portfolio nginx, Minecraft, Playit).
+- [ ] **Patching from now on:** `apt update && apt full-upgrade` monthly (or `unattended-upgrades`), and `docker compose pull` for the internet-facing containers (portfolio nginx, Mush nginx, Supabase Kong/auth/rest/storage/realtime, Minecraft, Playit).
 
 ## ⚪ Backlog / wishlist
 
