@@ -64,8 +64,8 @@ Use when the hypervisor boot device or the whole node is lost but the ZFS disks 
    |---|---|
    | VMID / name | 100 / `debian` (guest hostname `debian-docker`) |
    | Machine | `q35` (guest reports `pc-q35-11.0`), OVMF/UEFI recommended for GPU passthrough |
-   | CPU | 4 cores (guest sees `QEMU Virtual CPU version 2.5+`; use `cpu: host` for AVX in Ollama/Immich ML) |
-   | Memory | 11264 MB since 2026-09-27 (12 GB left the host too little RAM during backups), ballooning off (`virtio_balloon` not loaded in the guest). Go higher only after a host RAM upgrade |
+   | CPU | 8 cores, `cpu: host` (for AVX in Ollama/Immich ML) |
+   | Memory | 22528 MB since 2026-10-11 (host has 32 GB; leave ~10 GB for the host and backups), ballooning off (`virtio_balloon` not loaded in the guest) |
    | Disks | `scsi0`: boot zvol on `fastpool` (502 GB); `scsi1`: 1.5 TB data disk for `/mnt/tank` (record its storage ID from `qm config 100` **now**, while the host is healthy). VirtIO SCSI, `discard=on`, `ssd=1` |
    | NIC | `virtio`, bridge `vmbr0` (guest interface `enp6s18`) |
    | Display | default (Virtio GPU) plus `hostpci0: <nvidia-pci-id>,pcie=1` for the RTX 2060 SUPER |

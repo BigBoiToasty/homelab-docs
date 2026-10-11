@@ -8,7 +8,7 @@
 flowchart TB
     HW["Physical server<br/>13 × 1 TB SSD · 3 × 1 TB HDD · RTX 2060 SUPER"]
     PVE["Proxmox VE 9.2<br/>ZFS: fastpool (SSD) · hddpool (HDD)"]
-    VM["VM 100 'debian-docker'<br/>Debian 12 · 4 vCPU · 11 GB RAM · GPU passed through"]
+    VM["VM 100 'debian-docker'<br/>Debian 12 · 8 vCPU · 22 GB RAM · GPU passed through"]
     DK["Docker: 40 containers in 9 projects"]
     HW --> PVE --> VM --> DK
 ```
@@ -27,7 +27,7 @@ One VM runs all the Docker containers, rather than one VM or LXC per service. Th
 | GPU | NVIDIA RTX 2060 SUPER 8 GB, PCIe passthrough to VM 100 (`vfio-pci` on the host) |
 | Backup jobs | VM 100 nightly at 05:00 to `hddpool-backups`, boot disk only (see [below](#vm-100-backup)). The photo-copy disk (`scsi2`) has *Backup* unchecked |
 
-Host RAM (checked 2026-09-26): 16 GB total. VM 11 GB since 2026-09-27 (was 12), ZFS read cache (ARC) capped at 1.5 GB (Proxmox default, 10 %) and using ~0.2 GB, the rest is Proxmox. The ARC is not competing with the VM, but there is no spare RAM to give the VM either. With the GPU passed through, all of the VM's RAM is locked on the host at all times; it can't be lent back.
+Host RAM: 32 GB (4 × 8 GB DDR4) since 2026-10-10. VM 22 GB since 2026-10-11 (was 11), leaving ~10 GB for Proxmox, the ZFS read cache (ARC, Proxmox default cap 10 %) and the nightly backup. With the GPU passed through, all of the VM's RAM is locked on the host at all times; it can't be lent back.
 
 To do on the host (the audit script can't see it): record `qm config 100` and `zpool status`.
 
@@ -54,8 +54,8 @@ The first attempt froze the VM; what fixed it is in the [incident log](../runboo
 |---|---|
 | OS | Debian 12 (bookworm), kernel 6.1.0-52 |
 | Machine | QEMU q35, KVM |
-| CPU | 4 vCPU, type `host` (shows as i3-12100, AVX2 available). Changed 2026-09-26 |
-| RAM | 11 GB (11264 MB) since 2026-09-27, ballooning off, plus an 8 GB swapfile. 4–5 GB of cold pages in swap on 2026-09-28, but nothing actively swapping (it was 99 % on 09-25) |
+| CPU | 8 vCPU (all host threads), type `host` (shows as i3-12100, AVX2 available). 8 since 2026-10-11 |
+| RAM | 22 GB (22528 MB) since 2026-10-11, ballooning off, plus an 8 GB swapfile (empty after boot) |
 | Disks | `sda` 502 GB (boot), `sdb` 1.5 TB (data at `/mnt/tank`). Details below |
 | GPU | RTX 2060 SUPER, NVIDIA driver 615 (open kernel module) + container toolkit 1.20.1. Used by Ollama and Jellyfin |
 | QEMU guest agent | **On** in Proxmox and in the VM (2026-09-26) |

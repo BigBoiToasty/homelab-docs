@@ -21,11 +21,11 @@
 - **tailnet**: your devices with Tailscale on; the `*.example.com` names point at the server's Tailscale IP.
 - **LAN**: devices on your home network, using the server's IP and port.
 
-## Memory budget (11 GB VM)
+## Memory budget (22 GB VM)
 
-On 2026-09-25 the VM ran out of memory (7.9 of 8 GB swap). Immich is now capped and Ollama's model moved to the GPU. On 2026-09-27 the VM went from 12 to 11 GB so the host keeps enough RAM during the nightly backup (with the GPU passed through, the host can't reclaim any of the VM's RAM). On 2026-09-27/28: 1.6–3.6 GB available, 4–5 GB of cold pages in swap, no active swapping, no OOM kills.
+The VM has 22 GB since 2026-10-11 (was 11; host RAM upgraded to 32 GB). With the GPU passed through, all of it is locked on the host, so the host keeps the other ~10 GB for itself and the nightly backup. Just after boot on 2026-10-11: ~10 GiB used, ~11 GiB available, swap empty.
 
-**Why 11 GB is the right size for now:** more would starve the host during backups (the 12 GB setup froze the VM on 2026-09-27); less would leave no room for Immich imports (+2 GB) and indexing (+1 GB) on top of the normal load. Worry only if `vmstat 1` shows non-zero `si`/`so` for minutes, or `/proc/pressure/memory` stays above a few percent.
+**How the RAM is shared:** no fixed split. Linux uses whatever is free as file cache and gives it back on demand, so most containers have no limit. The caps below are guard rails on the few apps that have run away before (or could), not reservations: they don't hold memory back from anyone else. Keep them, because nothing kills processes automatically on this VM. Keep ~8 GB free in normal use as headroom for game streaming and the job agent's Chrome. Worry only if `vmstat 1` shows non-zero `si`/`so` for minutes, or `/proc/pressure/memory` stays above a few percent.
 
 | Consumer | Limit | Uses (2026-09-27/28) | Page |
 |---|---|---|---|
@@ -40,7 +40,7 @@ On 2026-09-25 the VM ran out of memory (7.9 of 8 GB swap). Immich is now capped 
 | everything else in Docker | mostly none | ~1.2 GiB | — |
 | host programs (Chrome/Xvfb, Claude tooling, dockerd, tailscaled) | none (`tailscaled` and `sshd` have reserved memory, see below) | ~1.5–2.5 GiB normally. On 2026-10-03: 27 leftover Playwright Chrome processes (~2 GiB) and 3 forgotten Claude sessions | [host-and-vm](../architecture/host-and-vm.md#host-native-programs) |
 
-The caps (Minecraft 5 G, Immich 4 G + 2 G, Terraria 2 G, Ollama 3 G, n8n 1 G, Stirling 1 G, mc-backup 512 M) add up to 18.5 GiB, more than the VM has. That works only because they rarely peak together. Cheapest way to get headroom: lower Minecraft's cap to ~3 GiB. The host has only 16 GB, so the real long-term fix is a RAM upgrade ([roadmap](../roadmap/ROADMAP.md)).
+The caps (Minecraft 5 G, Immich 4 G + 2 G, Terraria 2 G, Ollama 3 G, n8n 1 G, Stirling 1 G, mc-backup 512 M) add up to 18.5 GiB, which now fits inside the VM even if everything peaks at once.
 
 Past memory problems (2026-09-25, 2026-10-03) and their fixes: [incident log](../runbooks/incident-log.md).
 

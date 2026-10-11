@@ -46,7 +46,7 @@ flowchart TB
     end
 
     subgraph PVE["Proxmox server · ZFS fastpool (SSD) + hddpool (HDD) · RTX 2060 SUPER"]
-        subgraph VM["VM 100 debian-docker · Debian 12 · 4 vCPU · 11 GB RAM"]
+        subgraph VM["VM 100 debian-docker · Debian 12 · 8 vCPU · 22 GB RAM"]
             NGINX["nginx-proxy<br/>immich · n8n · pdf · supabase · mush<br/>.example.com"]
             PORT["portfolio site"]
             GAMES["Minecraft · Terraria"]

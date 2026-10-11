@@ -32,7 +32,7 @@ Things that can lose data or are one-line fixes.
 Play Sekiro and Ghost of Tsushima from the server on the Retroid Pocket Flip 2 (Moonlight), at home and via Tailscale. Minecraft and Terraria keep running.
 
 - [ ] **Phase A:** a games disk, a `game-mode` switch that pauses Ollama/n8n/Stirling/Immich ML, Wolf (Games on Whales), Moonlight on the Retroid.
-- [ ] **Phase B:** RAM upgrade. Host has 32 GB since 2026-10-10 (4 × 8 GB DDR4). Still to do: VM to ~22 GB / 8 vCPU, and Steam for the big games.
+- [ ] **Phase B:** RAM upgrade. Host has 32 GB since 2026-10-10 (4 × 8 GB DDR4). VM 22 GB / 8 vCPU since 2026-10-11. Still to do: Steam for the big games.
 
 ## 🟡 Mid-term infrastructure upgrades
 
