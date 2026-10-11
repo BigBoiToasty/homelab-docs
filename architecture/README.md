@@ -10,5 +10,5 @@ How the homelab is built: the hardware and VM underneath, and how traffic gets i
 **The short version:**
 
 - One Proxmox server, one Debian VM, 40 Docker containers.
-- The **internet** can reach only the portfolio site (Cloudflare Tunnel) and the Minecraft/Terraria servers (Playit).
+- The **internet** can reach the portfolio, Mush and the Supabase API paths (Cloudflare Tunnel), and the Minecraft/Terraria servers (Playit).
 - Everything else is reached through **Tailscale**: the `*.example.com` names point at the server's Tailscale IP. It can also be reached from the home **LAN** by IP and port.

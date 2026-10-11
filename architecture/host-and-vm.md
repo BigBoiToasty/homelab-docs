@@ -67,7 +67,7 @@ The first attempt froze the VM; what fixed it is in the [incident log](../runboo
 | Service | State | What it does |
 |---|---|---|
 | `docker` / `containerd` | running | Runs all containers |
-| `cloudflared` | running | Cloudflare Tunnel: publishes the portfolio site |
+| `cloudflared` | running | Cloudflare Tunnel: publishes the portfolio, Mush and the Supabase API |
 | `tailscaled` | running | Private network access to everything. Reserved memory + OOM protection since 2026-10-03 |
 | `ssh` | running | Remote login (root + password allowed; see security). Reserved memory + OOM protection since 2026-10-03 |
 | `cron` | running | Terraria backup (04:00), Immich photo copy (04:10), app database dumps (04:40), Tailscale watchdog and portfolio auto-update every 5 min |

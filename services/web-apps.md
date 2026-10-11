@@ -1,11 +1,11 @@
 # Web apps: Mush and portfolio
 
 > Last verified 2026-09-25.
-> **In one line:** two static websites served by small nginx containers. The portfolio is the **only public website** (through the Cloudflare Tunnel); Mush is tailnet-only.
+> **In one line:** two static websites served by small nginx containers. Both are public through the Cloudflare Tunnel (Mush since 2026-10-11).
 
 | Container | Compose project | Image | Port | Serves | Who can reach it |
 |---|---|---|---|---|---|
-| mush-frontend | `~/Mush` | `nginx:alpine` | 8085→80 | `~/Mush/dist` (React build) with `~/Mush/nginx.conf` | `https://mush.example.com` for the tailnet (Supabase is its backend) |
+| mush-frontend | `~/Mush` | `nginx:alpine` | 8085→80 | `~/Mush/dist` (React build) with `~/Mush/nginx.conf` | **Internet:** `https://mush.example.com` via Cloudflare Tunnel (Supabase API is its backend) |
 | portfolio-web | `~/docker/portfolio` | `nginx:alpine` | 8090→80 | `~/docker/portfolio/repo/dist` | **Internet:** apex `https://example.com` via Cloudflare Tunnel |
 | portfolio-build | `~/docker/portfolio` | `node:20-alpine` | — | one-shot build that produces `repo/dist` | — |
 

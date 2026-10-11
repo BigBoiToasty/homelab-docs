@@ -25,7 +25,7 @@ Things that can lose data or are one-line fixes.
 
 ## 🌐 Make Mush public (next project)
 
-- [ ] Publish Mush and its Supabase API through the Cloudflare Tunnel; Supabase Studio stays tailnet-only; require email confirmation for sign-ups.
+- [ ] Test a real sign-up on a phone off the tailnet (Turnstile in a real browser). Optional: Google sign-in (disabled on the server).
 
 ## 🎮 Game streaming (after Mush)
 
@@ -52,6 +52,7 @@ Play Sekiro and Ghost of Tsushima from the server on the Retroid Pocket Flip 2 (
 
 ## ✅ Done
 
+- ✅ Mush and its Supabase API public through the Cloudflare Tunnel; Studio not exposed; sign-ups need Cloudflare Turnstile (2026-10-11).
 - ✅ VM on kernel 6.1.0-53, Ollama still 100 % on the GPU (2026-10-11).
 - ✅ VM 100 resized to 22 GB / 8 vCPU after the host RAM upgrade (2026-10-11).
 - ✅ Nightly VM backups confirmed succeeding (2026-10-04).

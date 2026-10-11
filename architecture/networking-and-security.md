@@ -8,8 +8,8 @@
 |---|---|---|---|
 | Physical / LAN | Proxmox bridge → VM NIC `enp6s18` (virtio), DHCP | `192.168.x.x/24` + SLAAC IPv6 | Any LAN device |
 | Overlay | `tailscaled` 1.102.2, interface `tailscale0`, MagicDNS on, not an exit node, no `serve`/`funnel` | `100.x.x.x/32`, `fd7a:115c:a1e0::/48` | Devices on the tailnet (5 peers, 4 online) |
-| Private HTTPS (tailnet) | **`nginx-proxy` container** (`nginx:alpine`, `reverse-proxy` stack) publishing `:80/:443`; certs from host certbot mounted read-only | Public DNS A records for `n8n/immich/pdf/supabase/mush.example.com` point at the VM's **Tailscale IP** (no AAAA). No router port-forward: the home IP does not answer on 443 | Tailnet devices (and the LAN by IP) only. From the internet the names resolve to an unroutable 100.x address |
-| Public ingress (HTTP) | **`cloudflared`** systemd service, remotely managed tunnel (token file), 4 edge connections | Apex `example.com` (Cloudflare-proxied) → tunnel → `portfolio-web` :8090 | **Internet: the only public website** |
+| Private HTTPS (tailnet) | **`nginx-proxy` container** (`nginx:alpine`, `reverse-proxy` stack) publishing `:80/:443`; certs from host certbot mounted read-only | Public DNS A records for `n8n/immich/pdf.example.com` point at the VM's **Tailscale IP** (`mush` and `supabase` moved to the tunnel on 2026-10-11; their nginx vhosts are now unused) (no AAAA). No router port-forward: the home IP does not answer on 443 | Tailnet devices (and the LAN by IP) only. From the internet the names resolve to an unroutable 100.x address |
+| Public ingress (HTTP) | **`cloudflared`** systemd service, remotely managed tunnel (token file), 4 edge connections | Apex `example.com` → `portfolio-web` :8090; `mush.example.com` → `mush-frontend` :8085; `supabase.example.com` → Kong :8000 for API paths only (since 2026-10-11) | **Internet** |
 | Public ingress (games) | Playit.gg agents (outbound UDP tunnel, no port-forward) | Relay-assigned public endpoints | Internet |
 | VPN egress | Gluetun → Mullvad WireGuard | Tunnel `10.x.x.x/32` | Only containers sharing Gluetun's netns |
 | Container bridges | Docker `bridge` driver, one per Compose project group | see §4 | Containers on the same bridge + host via published ports |
@@ -54,17 +54,19 @@ How it is wired:
 | Service | `cloudflared.service` (systemd, enabled), binary `/usr/local/bin/cloudflared` |
 | Version | 2026.9.1. The daemon itself logs that 2026.9.3 is available; `cloudflared-update.timer` exists but is **disabled** |
 | Mode | Remotely managed: token read from a token file (`--token-file`), not on the command line |
-| Ingress rules | Defined in the Cloudflare dashboard (not visible on the VM). Verified from outside on 2026-09-25: the apex `example.com` serves the same content as `portfolio-web` (:8090). No subdomain uses the tunnel |
+| Ingress rules | Defined in the Cloudflare dashboard (not visible on the VM). Since 2026-10-11: apex → `http://localhost:8090`; `mush` → `http://localhost:8085`; `supabase` with path regex `^/(auth\|rest\|storage\|realtime)/v1/` → `http://localhost:8000`; everything else → 404. Verified from outside 2026-10-11: Mush 200, `supabase/` 404 (Studio hidden), `/rest/v1/` 401 without a key, sign-up without a Turnstile token refused, realtime websocket 101 |
 | Health | `/ready` on `127.0.0.1:20241` reports 4 ready connections |
 | Noise | ~20 `timeout: no recent network activity` reconnects and 1 DNS resolver timeout in 24 h. They coincide with the guest's CPU/swap stalls (README §4) rather than a tunnel fault |
 
-**Public exposure model (verified 2026-09-25):** the internet sees exactly three things:
+**Public exposure model (verified 2026-10-11):** the internet sees exactly five things:
 
 1. The static portfolio on the apex domain, via the tunnel.
-2. Minecraft via Playit.
-3. Terraria via Playit.
+2. The Mush website (`mush.`), via the tunnel.
+3. The Supabase API paths (`supabase.` + `/auth|rest|storage|realtime/v1/`), via the tunnel. Studio and Kong's other routes are not reachable.
+4. Minecraft via Playit.
+5. Terraria via Playit.
 
-Everything else, including the five nginx vhosts, resolves to the Tailscale IP and needs tailnet membership, or LAN access by raw IP. The home IP is not in DNS and has no port-forwards. To publish another app later, add a tunnel hostname (optionally behind Cloudflare Access) rather than opening router ports.
+Everything else, including the remaining nginx vhosts, resolves to the Tailscale IP and needs tailnet membership, or LAN access by raw IP. The home IP is not in DNS and has no port-forwards. To publish another app later, add a tunnel hostname (optionally behind Cloudflare Access) rather than opening router ports.
 
 ### 2.3 Tailscale mesh
 
