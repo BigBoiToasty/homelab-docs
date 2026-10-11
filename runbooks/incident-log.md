@@ -6,6 +6,13 @@ Everything that has gone wrong, newest first: what it looked like, why it happen
 
 ---
 
+### 2026-10-10 · Second power outage 🟡
+- **Symptom:** the VM's last log entries are from 2026-10-10 about 07:30; it was back at 2026-10-11 01:07. The 04:00 nightly jobs did not run in between.
+- **Cause:** power cut; there is no UPS. The 32 GB RAM upgrade was installed while it was off.
+- **Checked (2026-10-11):** VM booted normally (UUID fstab fix held); 39 of 40 containers healthy, no failed units; data disks mounted clean; `immich_postgres` recovered automatically; Ollama 100% on GPU. Host: 31 GiB, all 4 DIMMs seen; all drives `PASSED`; `zpool status -x` healthy. `/dev/sdj` pending sectors went from 2 to 1, reallocated still 0. The M.2 SSD (now `/dev/sdg`, names shift between boots) is still at 77 CRC errors.
+- **Not caused by the outage:** Gluetun is `unhealthy`: the WireGuard tunnel to Mullvad receives 0 bytes; its last logged public IP is from 2026-09-27. Likely the Mullvad account's time or key; see [disaster recovery](disaster-recovery.md). qBittorrent is offline behind the kill switch, nothing leaks.
+- **If it comes back:** same checks as the 2026-10-06 entry below.
+
 ### 2026-10-06 · Power outage 🟡
 - **Symptom:** the house lost power at about 23:43; the Proxmox host and the desktop turned off instantly. Everything came back on its own when power returned; the VM was up at 00:05.
 - **Cause:** power cut; there is no UPS.
