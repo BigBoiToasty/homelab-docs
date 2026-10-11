@@ -7,7 +7,7 @@
 
 | Container | Image | Ports | Memory cap | Data lives in | Notes |
 |---|---|---|---|---|---|
-| gluetun | `qmcgaw/gluetun:latest` | 8080, 6881 tcp+udp (for qBittorrent) | none | — | Mullvad WireGuard VPN; `NET_ADMIN`, `/dev/net/tun`; healthy. Private key written literally in compose. |
+| gluetun | `qmcgaw/gluetun:latest` | 8080, 6881 tcp+udp (for qBittorrent) | none | — | Mullvad WireGuard VPN; `NET_ADMIN`, `/dev/net/tun`. **Down since ~2026-09-27: Mullvad subscription lapsed** (qBittorrent offline behind the kill switch until renewed). Private key written literally in compose. |
 | qbittorrent | `lscr.io/linuxserver/qbittorrent:latest` | via gluetun | none | `/home/<user>/docker/media/config/qbittorrent → /config`, `/mnt/tank/media/downloads` | `network_mode: service:gluetun`. Config path doesn't follow the `/docker/media/config/*` convention. |
 | jellyfin | `jellyfin/jellyfin:latest` | 8096, 8920 | none | `/docker/media/config/jellyfin`, `/docker/media/cache/jellyfin`, `/mnt/tank/media` | Has the GPU (NVENC/NVDEC work on driver 535); healthy. |
 | sonarr | `lscr.io/linuxserver/sonarr:latest` | 8989 | none | `/docker/media/config/sonarr`, `/mnt/tank/media` | TV |
