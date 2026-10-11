@@ -8,7 +8,7 @@
 |---|---|---|---|
 | Physical / LAN | Proxmox bridge → VM NIC `enp6s18` (virtio), DHCP | `192.168.x.x/24` + SLAAC IPv6 | Any LAN device |
 | Overlay | `tailscaled` 1.102.2, interface `tailscale0`, MagicDNS on, not an exit node, no `serve`/`funnel` | `100.x.x.x/32`, `fd7a:115c:a1e0::/48` | Devices on the tailnet (5 peers, 4 online) |
-| Private HTTPS (tailnet) | **`nginx-proxy` container** (`nginx:alpine`, `reverse-proxy` stack) publishing `:80/:443`; certs from host certbot mounted read-only | Public DNS A records for `n8n/immich/pdf.example.com` point at the VM's **Tailscale IP** (`mush` and `supabase` moved to the tunnel on 2026-10-11; their nginx vhosts are now unused) (no AAAA). No router port-forward: the home IP does not answer on 443 | Tailnet devices (and the LAN by IP) only. From the internet the names resolve to an unroutable 100.x address |
+| Private HTTPS (tailnet) | **`nginx-proxy` container** (`nginx:alpine`, `reverse-proxy` stack) publishing `:80/:443`; certs from host certbot mounted read-only | Public DNS A records for `n8n/immich/pdf/studio.example.com` point at the VM's **Tailscale IP** (`mush` and `supabase` moved to the tunnel on 2026-10-11; their nginx vhosts are now unused) (no AAAA). No router port-forward: the home IP does not answer on 443 | Tailnet devices (and the LAN by IP) only. From the internet the names resolve to an unroutable 100.x address |
 | Public ingress (HTTP) | **`cloudflared`** systemd service, remotely managed tunnel (token file), 4 edge connections | Apex `example.com` → `portfolio-web` :8090; `mush.example.com` → `mush-frontend` :8085; `supabase.example.com` → Kong :8000 for API paths only (since 2026-10-11) | **Internet** |
 | Public ingress (games) | Playit.gg agents (outbound UDP tunnel, no port-forward) | Relay-assigned public endpoints | Internet |
 | VPN egress | Gluetun → Mullvad WireGuard | Tunnel `10.x.x.x/32` | Only containers sharing Gluetun's netns |
@@ -35,7 +35,7 @@ flowchart LR
 | `n8n.conf` | `n8n.example.com` | 443, 80→301 | `172.17.0.1:5678` | 200 |
 | `pdf.conf` | `pdf.example.com` | 443, 80→301 (**fixed**, was HTTP-only) | `host.docker.internal:8081` | 200 |
 | `vaultwarden.conf` (added 2026-09-25) | `vaultwarden.example.com` | 443, 80→301 | `host.docker.internal:8222` | 200 (DNS record still to add) |
-| `supabase.conf` | `supabase.example.com` | 443, 80→301 | `host.docker.internal:8000` (Kong only) | 401 (Kong requires an API key; expected) |
+| `supabase.conf` | `studio.example.com` (was `supabase.`, renamed 2026-10-11) | 443, 80→301 | `host.docker.internal:8000` (Kong; `/` is Studio) | 401 (Studio login prompt; expected) |
 
 How it is wired:
 

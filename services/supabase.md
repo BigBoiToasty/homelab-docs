@@ -27,7 +27,7 @@ All paths are relative to `~/docker/supabase-service/` (68 MB, on the boot disk)
 |---|---|
 | API (Kong) at `https://supabase.example.com` | **Internet** via Cloudflare Tunnel since 2026-10-11, only `/auth/v1/`, `/rest/v1/`, `/storage/v1/`, `/realtime/v1/` (anything else 404). Returns 401 without an API key. Sign-ups require Cloudflare Turnstile (`GOTRUE_SECURITY_CAPTCHA_*`) |
 | Kong direct on 8000/8443, Postgres pooler on 5432/6543 | LAN + tailnet |
-| Studio (admin UI) | Only from the server itself (`127.0.0.1:3002`). Use an SSH tunnel: `ssh -L 3002:127.0.0.1:3002 root@<server>` |
+| Studio (admin UI) | Tailnet: `https://studio.example.com` (since 2026-10-11; DNS-only A record to the Tailscale IP → nginx → Kong `/`, login = `DASHBOARD_USERNAME`/`DASHBOARD_PASSWORD` in `~/docker/supabase-service/.env`). Also `127.0.0.1:3002` on the server itself |
 
 ## Secrets
 
