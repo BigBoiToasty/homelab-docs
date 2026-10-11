@@ -38,7 +38,6 @@ Play Sekiro and Ghost of Tsushima from the server on the Retroid Pocket Flip 2 (
 
 - [ ] **Pi-hole as the tailnet's DNS** for ad blocking, after monitoring alerts exist.
 - [ ] **Monitoring alerts to Discord** (memory, swap, disk, services down, failed nightly backups). Waiting on a Discord webhook. → [services/management.md](../services/management.md#monitoring-gaps)
-- [ ] **Reboot the VM once** for kernel 6.1.0-53 (scheduled 2026-10-05 09:00), then check Ollama is on the GPU.
 - [ ] **Patching from now on:** `apt update && apt full-upgrade` monthly (or `unattended-upgrades`), and `docker compose pull` for the internet-facing containers (portfolio nginx, Minecraft, Playit).
 
 ## ⚪ Backlog / wishlist
@@ -53,6 +52,8 @@ Play Sekiro and Ghost of Tsushima from the server on the Retroid Pocket Flip 2 (
 
 ## ✅ Done
 
+- ✅ VM on kernel 6.1.0-53, Ollama still 100 % on the GPU (2026-10-11).
+- ✅ VM 100 resized to 22 GB / 8 vCPU after the host RAM upgrade (2026-10-11).
 - ✅ Nightly VM backups confirmed succeeding (2026-10-04).
 - ✅ n8n's Google OAuth app published to production (2026-10-04).
 - ✅ Unknown device removed from the tailnet (2026-10-04).
