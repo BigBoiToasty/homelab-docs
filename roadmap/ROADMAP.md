@@ -52,6 +52,8 @@ Play Sekiro and Ghost of Tsushima from the server on the Retroid Pocket Flip 2 (
 
 ## ✅ Done
 
+- ✅ Mush rebuilds itself from GitHub every 5 minutes (`mush-update.sh`: tests, build, then swap), with cache rules in its nginx (2026-10-12).
+- ✅ Mush binder backgrounds fixed: storage policy for `binder-backgrounds` added by the owner (2026-10-12).
 - ✅ Mush and its Supabase API public through the Cloudflare Tunnel; Studio not exposed; sign-ups need Cloudflare Turnstile (2026-10-11).
 - ✅ VM on kernel 6.1.0-53, Ollama still 100 % on the GPU (2026-10-11).
 - ✅ VM 100 resized to 22 GB / 8 vCPU after the host RAM upgrade (2026-10-11).
