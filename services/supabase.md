@@ -29,6 +29,17 @@ All paths are relative to `~/docker/supabase-service/` (68 MB, on the boot disk)
 | Kong direct on 8000/8443, Postgres pooler on 5432/6543 | LAN + tailnet |
 | Studio (admin UI) | Tailnet: `https://studio.example.com` (since 2026-10-11; DNS-only A record to the Tailscale IP → nginx → Kong `/`, login = `DASHBOARD_USERNAME`/`DASHBOARD_PASSWORD` in `~/docker/supabase-service/.env`). Also `127.0.0.1:3002` on the server itself |
 
+## Mush's database
+
+Tables `binders`, `binder_slots` and `profiles`, all with row-level security: each user reads and writes only their own rows. Deleting a binder deletes its slots in the database (`ON DELETE CASCADE`).
+
+| Function | Who | What |
+|---|---|---|
+| `get_shared_binder`, `get_shared_binder_slots`, `search_shared_binder` | anyone with a share token | Read-only view of a shared binder |
+| `move_card` (2026-10-12) | signed-in users, own binders only | Move or swap a card in one all-or-nothing step |
+
+Storage bucket `binder-backgrounds`: users may write only inside their own folder (named after their user ID); policy added by the owner 2026-10-12. SQL for database changes is kept in the Mush repo under `supabase/` and run in Studio's SQL Editor; there is no migration tool.
+
 ## Secrets
 
 `~/docker/supabase-service/.env` holds ~20 secret values (JWT secret, anon/service keys, Postgres password, dashboard password). It is mode `644`, which was left as is on purpose (only root and the owner log in; see [security finding 7](../architecture/networking-and-security.md#6-security-posture)). The restored database only works with the **same** `.env`, so escrow it with the backups.
