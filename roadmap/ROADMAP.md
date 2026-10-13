@@ -17,7 +17,6 @@
 
 Things that can lose data or are one-line fixes.
 
-- [ ] **Media apps: decide whether to restore their pre-Sep-8 settings** from `/root/docker/media/config`. They were reset by the same path change as Vaultwarden. → [services/media.md](../services/media.md#settings-probably-lost-on-2026-09-08)
 
 - [ ] **Reseat the 256 GB M.2 SSD in the Proxmox host** (connection errors; flash healthy), then recheck its SMART counters. → [host-and-vm.md](../architecture/host-and-vm.md#proxmox-host)
 - [ ] **Off-site copy** of the photos and database dumps (e.g. Backblaze B2).
@@ -43,7 +42,6 @@ Play Sekiro and Ghost of Tsushima from the server on the Retroid Pocket Flip 2 (
 
 ## ⚪ Backlog / wishlist
 
-- [ ] **Simplify media app logins** (passwordless Jellyfin profiles, no login on the *arr apps over Tailscale).
 
 - [ ] Web terminals (ttyd sidecars) and embedded game terminals. *(phases 3.4, 5.3)*
 - [ ] Heavy local AI workstation (RX 9070 XT). *(phase 4.1)*
@@ -53,6 +51,7 @@ Play Sekiro and Ghost of Tsushima from the server on the Retroid Pocket Flip 2 (
 
 ## ✅ Done
 
+- ✅ Media apps' pre-Sep-8 settings restored and fixed for the current setup; logins off except Kavita (2026-10-12).
 - ✅ VM memory watch closed: 22 GB VM; swap 1.5 of 8 GB after a day of use, down from 5.7 GB before the RAM upgrade (2026-10-12).
 - ✅ Mush's main address is its own domain: canonical, sitemap and share tags moved; the old Vercel copy redirects every path there (2026-10-12).
 - ✅ Mush rebuilds itself from GitHub every 5 minutes (`mush-update.sh`: tests, build, then swap), with cache rules in its nginx (2026-10-12).

@@ -39,20 +39,20 @@ flowchart LR
 
 Full networking detail: [architecture/networking-and-security.md §3](../architecture/networking-and-security.md#3-gluetun-vpn-network-mode-sharing).
 
-## Settings probably lost on 2026-09-08
+## Settings (restored 2026-10-12)
 
-The same path change that emptied Vaultwarden hit these apps. Each has an **older, larger config** in `/root/docker/media/config/<app>` (last modified 2026-09-07), while the live config in `/docker/media/config/<app>` was started fresh on 2026-09-08:
+The apps' settings from before the 2026-09-08 path change were copied back from `/root/docker/media/config/<app>` (Sep 7) and adjusted for the current setup: qBittorrent is reached at `gluetun` (it shares gluetun's network), and Sonarr and Radarr translate qBittorrent's `/downloads/` to their `/media/downloads/`. Backups of the old and the replaced settings, and the script that did it: `/root/docker/media/config-backups/2026-10-12/`.
 
-| App | Old config (`/root/docker/media/config`) | Live config (`/docker/media/config`) |
-|---|---|---|
-| sonarr | 60 MB | 12 MB |
-| radarr | 59 MB | 8.5 MB |
-| jellyfin | 32 MB | 0.7 MB |
-| prowlarr | 24 MB | 5.6 MB |
-| kavita | 16 MB | 2.5 MB |
-| lazylibrarian | 5.4 MB | 4.6 MB |
+| App | Settings |
+|---|---|
+| prowlarr | Indexers The Pirate Bay, YTS, Nyaa.si, showRSS; synced to Sonarr and Radarr |
+| sonarr | Folders `/media/tv`, `/media/anime`; qBittorrent category `tv-sonarr` |
+| radarr | Folder `/media/movies`; qBittorrent category `radarr` |
+| jellyfin | Libraries Movies, TV Shows, Anime (`/media/...`); user `root` |
+| kavita | Library Books (`/books`) |
+| lazylibrarian | Books and downloads folders; qBittorrent label `books` |
 
-If an app is missing indexers, users, libraries or API keys you set up before Sep 8, restore it the way Vaultwarden was restored: back up both folders, stop the container, copy the old folder over the live one, and start it. Settings changed since Sep 8 would be lost for that app. `/root/docker/media/config/nginx-proxy-manager` is a leftover from a retired proxy.
+**Logins are off** for trusted users on the tailnet (and the home LAN, which can reach the same ports): Sonarr/Radarr/Prowlarr use `AuthenticationMethod` External, Jellyfin's `root` has an empty password, qBittorrent skips its login for `100.64.0.0/10` (tailnet) and `172.16.0.0/12` (the other containers). Kavita can't turn its login off.
 
 ## Backups
 
