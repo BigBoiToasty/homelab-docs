@@ -10,7 +10,6 @@
 ## 🔴 In progress
 
 - [ ] **Test-restore the VM 100 backup once** (needs VM 100 off for 1–2 h). → [disaster-recovery §5.3](../runbooks/disaster-recovery.md#53-validation-procedures-run-quarterly-record-results)
-- [ ] **Keep an eye on VM memory** after the [2026-10-03 incident](../runbooks/incident-log.md): swap should stay well below 8 GB.
 - [ ] **Close old Claude sessions and leftover Chrome** now and then; they held ~2.7 GB on 2026-10-03.
 - [ ] **Tune Immich background uploads/jobs.** Lower job concurrency in Admin → Jobs and run face detection / smart search overnight so they don't fight the game servers. → [services/immich.md](../services/immich.md#memory-and-cpu)
 
@@ -23,12 +22,12 @@ Things that can lose data or are one-line fixes.
 - [ ] **Reseat the 256 GB M.2 SSD in the Proxmox host** (connection errors; flash healthy), then recheck its SMART counters. → [host-and-vm.md](../architecture/host-and-vm.md#proxmox-host)
 - [ ] **Off-site copy** of the photos and database dumps (e.g. Backblaze B2).
 
-## 🌐 Make Mush public (next project)
+## 🌐 Mush (public since 2026-10-11)
 
 - [ ] Test a real sign-up on a phone off the tailnet (Turnstile in a real browser). Optional: Google sign-in (disabled on the server).
 - [ ] **Delete the old Vercel project** (`pokemush.vercel.app`) once Google lists the own domain instead, around December 2026. Until then it only redirects (308) to the own domain.
 
-## 🎮 Game streaming (after Mush)
+## 🎮 Game streaming (next project)
 
 Play Sekiro and Ghost of Tsushima from the server on the Retroid Pocket Flip 2 (Moonlight), at home and via Tailscale. Minecraft and Terraria keep running.
 
@@ -53,6 +52,7 @@ Play Sekiro and Ghost of Tsushima from the server on the Retroid Pocket Flip 2 (
 
 ## ✅ Done
 
+- ✅ VM memory watch closed: 22 GB VM, swap empty after the RAM upgrade (2026-10-12).
 - ✅ Mush's main address is its own domain: canonical, sitemap and share tags moved; the old Vercel copy redirects every path there (2026-10-12).
 - ✅ Mush rebuilds itself from GitHub every 5 minutes (`mush-update.sh`: tests, build, then swap), with cache rules in its nginx (2026-10-12).
 - ✅ Mush binder backgrounds fixed: storage policy for `binder-backgrounds` added by the owner (2026-10-12).
