@@ -29,7 +29,7 @@ Mush is a PWA that caches itself. After a DNS or backend change, a phone can kee
 - **Site settings** (Supabase address, public anon key, Turnstile site key) are in `~/docker/mush-deploy/.env.production`, not in GitHub. A laptop needs its own copy to run Mush locally. `VITE_GOOGLE_SIGNIN=true` shows the Google button once Google sign-in is set up.
 - **Log:** `tail /var/log/mush-update.log`. Update now: run `/usr/local/bin/mush-update.sh`.
 - **`~/Mush`** is a working copy for branches (the server pushes with a Mush-only deploy key). `docker-compose.yml` and `nginx.conf` there are server files, not in GitHub.
-- **Old Vercel copy:** the Vercel project still builds from GitHub, but `vercel.json` makes it only redirect (308) every path to the own domain. Delete it once search results show the own domain.
+- **Old Vercel copy:** the Vercel project still builds from GitHub, but `vercel.json` makes it serve only a self-removing `sw.js` (clears the old offline app from browsers that used the Vercel copy) and redirect (308) every other path to the own domain. Delete it once search results show the own domain.
 - **Caching** (`~/Mush/nginx.conf`): build files in `/assets/` are kept a year (their names change every build), the page and the app's update files are always re-checked, textures and the icon a week.
 
 Manual commands:
