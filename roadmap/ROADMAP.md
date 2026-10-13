@@ -26,6 +26,7 @@ Things that can lose data or are one-line fixes.
 ## 🌐 Make Mush public (next project)
 
 - [ ] Test a real sign-up on a phone off the tailnet (Turnstile in a real browser). Optional: Google sign-in (disabled on the server).
+- [ ] **Delete the old Vercel project** (`pokemush.vercel.app`) once Google lists the own domain instead, around December 2026. Until then it only redirects (308) to the own domain.
 
 ## 🎮 Game streaming (after Mush)
 
@@ -52,6 +53,7 @@ Play Sekiro and Ghost of Tsushima from the server on the Retroid Pocket Flip 2 (
 
 ## ✅ Done
 
+- ✅ Mush's main address is its own domain: canonical, sitemap and share tags moved; the old Vercel copy redirects every path there (2026-10-12).
 - ✅ Mush rebuilds itself from GitHub every 5 minutes (`mush-update.sh`: tests, build, then swap), with cache rules in its nginx (2026-10-12).
 - ✅ Mush binder backgrounds fixed: storage policy for `binder-backgrounds` added by the owner (2026-10-12).
 - ✅ Mush and its Supabase API public through the Cloudflare Tunnel; Studio not exposed; sign-ups need Cloudflare Turnstile (2026-10-11).
