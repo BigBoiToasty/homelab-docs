@@ -37,6 +37,7 @@ Play Sekiro and Ghost of Tsushima from the server on the Retroid Pocket Flip 2 (
 ## 🟡 Mid-term infrastructure upgrades
 
 - [ ] **Pi-hole as the tailnet's DNS** for ad blocking, after monitoring alerts exist.
+- [ ] **Mullvad renewal reminder:** write down the paid-until date when renewing (gluetun goes down silently when it runs out, as on ~2026-09-27), and get a reminder about a week before, as a Discord alert once those exist. → [services/media.md](../services/media.md)
 - [ ] **Monitoring alerts to Discord** (memory, swap, disk, services down, failed nightly backups). Waiting on a Discord webhook. → [services/management.md](../services/management.md#monitoring-gaps)
 - [ ] **Patching from now on:** `apt update && apt full-upgrade` monthly (or `unattended-upgrades`), and `docker compose pull` for the internet-facing containers (portfolio nginx, Mush nginx, Supabase Kong/auth/rest/storage/realtime, Minecraft, Playit).
 
