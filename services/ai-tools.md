@@ -17,18 +17,14 @@
 
 **The workflow ("My workflow"):**
 
-1. *Gmail Trigger* polls every 15 min, with Simplify off, so the full message is available.
-2. *Ollama* (`qwen3:8b`, temperature 0, JSON output, `num_ctx` 8192) reads the **full email body** (first 6,000 characters). It decides whether the email is a real update on a job application (confirmation, assessment, interview, rejection) or noise (job alerts, newsletters), and extracts company, job title and dates.
-   - The rules are in the system message and the email in the user message.
-   - A consistency rule says any confirmation, assessment, interview or rejection is "useful".
-3. *Filter* passes anything marked useful or carrying one of those four categories.
-4. *Discord* posts a card to `#jobs`. It shows the company and role, the email's own date, a deadline if there is one, a one-line summary, and an "Open email" link. The link is `https://mail.google.com/mail/?authuser=<account>#all/<thread id>`, wrapped in `<>` so Discord shows no preview.
-5. *Run email sync* calls the email-sync listener ([below](#job-application-automation)), which updates the job tracker and the applied-jobs sheet. It runs once per poll and on error continues, so a failure never blocks the Discord post.
+1. *Gmail Trigger*: polls every 15 min (Simplify off, so the full message is available).
+2. *Ollama*: `qwen3:8b`, temperature 0, JSON, `num_ctx` 8192. Reads the first 6,000 characters of the body. It classifies the email as confirmation, assessment, interview, rejection or noise, and extracts company, role and dates.
+3. *Filter*: passes useful emails and anything in those four categories.
+4. *Discord*: a card in `#jobs` with company, role, date, deadline, a summary and an "Open email" link (`https://mail.google.com/mail/?authuser=<account>#all/<thread id>`, wrapped in `<>` so Discord shows no preview).
+5. *Run email sync*: pings the [email-sync listener](#job-application-automation) once per poll; a failure doesn't block the Discord post.
 
-- **Before 2026-10-13** the model only saw Gmail's ~200-character preview, so it often called rejections "confirmations".
-- **Editing it:** an n8n API key (Settings → n8n API) is in Vaultwarden, copied to a root-only file under `~/docker/management/secrets/`.
-- **Backups:** older workflow versions are saved as JSON in `config-backups/`.
-- **Testing:** the Gmail trigger can't be fired through the API. Test with a temporary copy whose first node is a webhook (same nodes and credentials), then delete it.
+- API key for edits: in Vaultwarden, copied under `~/docker/management/secrets/`. Old versions of the workflow are in `config-backups/`.
+- The Gmail trigger can't be fired through the API. To test, use a temporary copy that starts with a webhook node, then delete it.
 
 **Gmail credential:** it broke around 2026-09-19 ("refresh token expired"), which is why notifications stopped. Reconnected 2026-09-26; n8n's calls to Ollama show up in its log again. If it breaks again after about a week, the Google Cloud OAuth app is still in *Testing* mode, which expires tokens every 7 days. Fix: OAuth consent screen → *Publish app*.
 
@@ -63,20 +59,20 @@ Still open: `OLLAMA_MAX_LOADED_MODELS=1`.
 
 ## Job-application automation
 
-The tools themselves live in career-ops, which is private and not in this repo; its `local-automation.md` is the guide. This section covers only what runs on the homelab.
+The tools live in career-ops (private; guide: `local-automation.md`). What runs on the homelab:
 
 | Piece | Where | What |
 |---|---|---|
-| Qwen3.6-35B-A3B (Q4_K_M) | the desktop (LM Studio, RX 9070 XT), over Tailscale | Reads and scores job postings, ~10–30 s each. The desktop's Windows sleep is set to Never when plugged in, so long runs aren't cut off; `desktop-llm sleep` puts it to sleep afterwards. |
-| `email-sync-listener.service` | VM, `/usr/local/bin/email-sync-listener.py` | Listens only on the `server-net` gateway (`172.22.0.1:8765`), with a token (stored in n8n as a Header Auth credential). On a ping it waits 30 s, then runs career-ops' `email-sync.mjs`. |
-| `email-sync.mjs` | career-ops | Rejection → tracker *Rejected* and sheet *Rejected*; online assessment → *Responded* and *Online Assessment*; interview → *Interview*; confirmation → *Applied*, or a new sheet row if the company is missing. It changes only exact single matches and lists the rest. It reports to Discord `#job-agent`. |
-| Applied-jobs Google Sheet | Google | A service account (key in Vaultwarden) with Editor on that one sheet. To allow creating its key, the Google Cloud organization policies `iam.disableServiceAccountKeyCreation` and `iam.managed.disableServiceAccountKeyCreation` were turned off. Turning them back on keeps the existing key working. |
-| `oa-reminder.timer` | VM, 12:00 daily | Posts open online assessments (deadline, email link) to `#job-agent`; silent when there are none. |
-| Agent Chrome | VM, Xvfb `:98`, noVNC screen 2 (`:3011`) | Auto-fills Workday forms (it never submits), and reads jobright.ai and pages that block headless browsers. Signed in to Jobright. |
+| Qwen3.6-35B-A3B | desktop (LM Studio, RX 9070 XT), via Tailscale | Scores job postings. Windows sleep is set to Never when plugged in; `desktop-llm sleep` after runs. |
+| `email-sync-listener.service` | VM, `/usr/local/bin/email-sync-listener.py` | Listens on `172.22.0.1:8765` (the `server-net` gateway) and needs a token (an n8n Header Auth credential). On a ping it runs career-ops' `email-sync.mjs`. |
+| `email-sync.mjs` | career-ops | Applies email verdicts to the job tracker and the applied-jobs sheet (rejection, online assessment, interview, confirmation). It changes only unambiguous matches and reports to `#job-agent`. |
+| Applied-jobs sheet | Google | A service account with Editor access on that one sheet; its key is in Vaultwarden. Creating the key needed the org policies `iam.disableServiceAccountKeyCreation` and `iam.managed.disableServiceAccountKeyCreation` turned off. |
+| `oa-reminder.timer` | VM, daily 12:00 | Posts open online assessments to `#job-agent`. |
+| Agent Chrome | VM, Xvfb `:98`, noVNC screen 2 (`:3011`) | Auto-fills Workday (never submits) and reads jobright.ai. |
 
-**Discord channels:** `#jobs` (n8n email cards), `#job-agent` (the agent's messages: summaries, what's ready to submit), `#homelab` (server alerts; see [management](management.md#monitoring-and-alerts)).
+Discord channels: `#jobs` (n8n cards), `#job-agent` (the agent's messages), `#homelab` ([server alerts](management.md#monitoring-and-alerts)).
 
-**Ollama callers:** `qwen3:8b` "thinks" before answering unless the request sets `think: false`, which roughly doubles the time. career-ops' batch classifier sets it.
+`qwen3:8b` thinks before answering unless a request sets `think: false`, which takes about twice as long.
 
 ## Stirling-PDF memory
 

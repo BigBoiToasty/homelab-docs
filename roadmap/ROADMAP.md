@@ -35,9 +35,14 @@ Play Sekiro and Ghost of Tsushima from the server on the Retroid Pocket Flip 2 (
 
 ## 🟡 Mid-term infrastructure upgrades
 
-- [ ] **Pi-hole as the tailnet's DNS** for ad blocking (monitoring alerts now exist).
-- [ ] **Renew Mullvad** (gluetun unhealthy since ~2026-09-27). Then: `docker restart gluetun qbittorrent`, remove `container:gluetun` and `container:qbittorrent` from `/etc/homelab-alerts/silence`, un-pause Kuma's qBittorrent monitor, and write down the paid-until date for a `#homelab` reminder a week before the next expiry. → [services/media.md](../services/media.md)
-- [ ] **Set up Grafana dashboards** (it has none yet; Prometheus already collects VM metrics). Once it holds real dashboards, add `grafana.db` (volume `monitoring_grafana_data`) to the clean nightly dumps in `app-db-dumps.sh`, like Kuma and Jellyfin. → [services/management.md](../services/management.md#monitoring-and-alerts)
+- [ ] **Pi-hole as the tailnet's DNS** for ad blocking.
+- [ ] **Renew Mullvad** (gluetun down since ~2026-09-27). Afterwards:
+  - `docker restart gluetun qbittorrent`;
+  - remove both from `/etc/homelab-alerts/silence` and un-pause Kuma's qBittorrent monitor;
+  - note the paid-until date for a renewal reminder.
+
+  → [services/media.md](../services/media.md)
+- [ ] **Set up Grafana dashboards** (none yet), then add `grafana.db` to the nightly dumps.
 - [ ] **Patching from now on:** `apt update && apt full-upgrade` monthly (or `unattended-upgrades`), and `docker compose pull` for the internet-facing containers (portfolio nginx, Mush nginx, Supabase Kong/auth/rest/storage/realtime, Minecraft, Playit).
 
 ## ⚪ Backlog / wishlist
@@ -46,21 +51,15 @@ Play Sekiro and Ghost of Tsushima from the server on the Retroid Pocket Flip 2 (
 - [ ] Web terminals (ttyd sidecars) and embedded game terminals. *(phases 3.4, 5.3)*
 - [ ] Heavy local AI workstation (RX 9070 XT). *(phase 4.1)*
 - [ ] **Local agent on the RX 9070 XT:**
-  - **Working:** the desktop serves Qwen3.6-35B-A3B over Tailscale and scores job postings for career-ops; scripts auto-fill Workday on the VM's noVNC screen 2, stopping at the final Submit; job emails update the tracker and applied sheet.
-  - **Next:** Greenhouse/Lever/Ashby auto-fill, then a supervised nightly run (no schedule until the owner trusts it). → [services/ai-tools.md](../services/ai-tools.md#job-application-automation)
+  - **Working:** Qwen3.6 on the desktop scores job postings; Workday auto-fill stops before Submit; job emails update the tracker and sheet.
+  - **Next:** Greenhouse/Lever/Ashby auto-fill, then a supervised nightly run. → [services/ai-tools.md](../services/ai-tools.md#job-application-automation)
 - [ ] Wake-on-LAN remote desktop power management. *(phase 4.2)*
 - [ ] Custom React dashboard with live service integration (Mush + Supabase). *(phases 5.1–5.2)*
 
 ## ✅ Done
 
-- ✅ Monitoring alerts to Discord `#homelab`:
-  - a server-health script every 5 min (disk, memory, swap, containers, failed units, backups, Tailscale);
-  - Uptime-Kuma restored from its pre-reset data, with 22 monitors including the public sites (2026-10-13).
-- ✅ n8n job-email workflow:
-  - reads the full email (`num_ctx` 8192);
-  - cleaner Discord cards with an "Open email" link;
-  - updates the job tracker and applied sheet through `email-sync-listener` (2026-10-13).
-- ✅ Leftover `lms-relay` unit removed (2026-10-13).
+- ✅ Monitoring alerts to Discord `#homelab`: a server-health script, plus Uptime-Kuma restored with 22 monitors; Kuma and Jellyfin added to the nightly dumps (2026-10-13).
+- ✅ n8n job emails: full-email reading, cleaner Discord cards, tracker and sheet sync (2026-10-13).
 - ✅ Media apps' pre-Sep-8 settings restored and fixed for the current setup; logins off except Kavita (2026-10-12).
 - ✅ VM memory watch closed: 22 GB VM; swap 1.5 of 8 GB after a day of use, down from 5.7 GB before the RAM upgrade (2026-10-12).
 - ✅ Mush's main address is its own domain: canonical, sitemap and share tags moved; the old Vercel copy redirects every path there (2026-10-12).

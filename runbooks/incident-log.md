@@ -6,24 +6,15 @@ Everything that has gone wrong, newest first: what it looked like, why it happen
 
 ---
 
-### 2026-10-13 · Uptime-Kuma had been empty since the September data-path reset ✅
-- **Symptom:** Uptime-Kuma had 0 monitors and 0 notifications, and the owner's login was new. The docs said it "pings services".
-- **Cause:** the same 2026-09-08 data-path change that hit Vaultwarden. The container was pointed at an empty `/docker/media/uptime-kuma`; the real data stayed in `/root/docker/media/uptime-kuma` (last used 2026-09-07).
-- **Fix:**
-  - Copied the old `kuma.db` into the current folder; the empty one is kept in `config-backups/`.
-  - Kept the new login, removed the old email notification and the dead Nginx Proxy Manager monitor.
-  - Added Discord alerts and 14 more monitors.
-- **Also checked:** every other bind mount against its pre-reset path. Nothing else was lost: Vaultwarden was restored 2026-09-25 and the media apps 2026-10-12; the old n8n and Ollama folders were empty; Kavita's old copy only had extra automatic backup zips.
-- **If it comes back:** `sqlite3 /docker/media/uptime-kuma/kuma.db "select count(*) from monitor"`; compare `docker inspect <container>` mount sources with `/root/docker/...`.
+### 2026-10-13 · Uptime-Kuma empty since the September data-path reset ✅
+- **Symptom:** 0 monitors, 0 notifications, a fresh login.
+- **Cause:** the 2026-09-08 data-path change (same as Vaultwarden). The container pointed at an empty `/docker/media/uptime-kuma`; the old data stayed in `/root/docker/media/uptime-kuma`.
+- **Fix:** restored the old `kuma.db`, kept the new login, removed the dead Nginx Proxy Manager monitor, and added the Discord alert and 14 monitors. Kuma is now in the nightly dumps. Every other pre-reset folder was checked: nothing else was lost.
+- **If it comes back:** `sqlite3 /docker/media/uptime-kuma/kuma.db "select count(*) from monitor"`.
 
-### 2026-10-13 · Vaultwarden extension "failed to fetch" on the laptop ✅
-- **Symptom:** the browser extension couldn't log in or sync; the web vault worked.
-- **Cause:** the extension's server URL was still `https://<vm>.<tailnet>.ts.net`, from when Vaultwarden was published with Tailscale Serve. Serve is no longer configured, so nothing answers there.
-- **Fix:** set the extension's Self-hosted server URL to `https://vaultwarden.example.com`. Other clients (phone app, desktop browser) need the same change if they show the error.
-
-### 2026-10-13 · n8n fed the model blank emails for ~8 minutes ✅
-- **Symptom:** none visible. Gmail Trigger's Simplify was switched off before the prompt was updated, so the prompt still asked for `From`, `Subject` and `snippet`, which no longer existed.
-- **Fix:** the prompt now uses `from.text`, `subject` and `text` (with fallbacks). Only manual test fetches ran in the window, so no email was missed.
+### 2026-10-13 · Vaultwarden extension "failed to fetch" ✅
+- **Cause:** the extension still used the old Tailscale Serve address (`<vm>.<tailnet>.ts.net`), which no longer exists.
+- **Fix:** set its server URL to `https://vaultwarden.example.com`. Do the same on any other client that shows the error.
 
 ### 2026-10-10 · Second power outage 🟡
 - **Symptom:** the VM's last log entries are from 2026-10-10 about 07:30; it was back at 2026-10-11 01:07. The 04:00 nightly jobs did not run in between.

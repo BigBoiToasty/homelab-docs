@@ -21,15 +21,15 @@
 
 Served at `https://vaultwarden.example.com` (tailnet-only); sign-ups are off. The vault was restored on 2026-09-25 after the 2026-09-08 data-path reset ([incident log](../runbooks/incident-log.md)).
 
-**Clients** (browser extension, phone app) must use `https://vaultwarden.example.com`. The older `https://<vm>.<tailnet>.ts.net` address came from Tailscale Serve, which is no longer configured; a client still pointing there fails with "failed to fetch" (fixed on the laptop 2026-10-13).
+Clients (extension, phone app) must use `https://vaultwarden.example.com`. The old `<vm>.<tailnet>.ts.net` address (Tailscale Serve) is gone and gives "failed to fetch".
 
 This is the highest-value data in the stack. `db.sqlite3` and `rsa_key.pem` are dumped nightly ([app dumps](../runbooks/maintenance.md#nightly-app-database-dumps)); without the RSA key every client must log in again.
 
 ## Monitoring and alerts
 
-Two sources post to the Discord channel `#homelab`. Both reach Discord over the normal internet connection, so they still work when Tailscale is down.
+Two sources post to Discord `#homelab`. They use the normal internet connection, so they still work when Tailscale is down.
 
-**Uptime-Kuma** (`http://<tailscale-ip>:3001`): "does this service answer?" A service must fail 2 checks in a row before it alerts, and Kuma posts again when it recovers.
+**Uptime-Kuma** (`http://<tailscale-ip>:3001`) checks that services answer. It alerts after 2 failed checks in a row and again on recovery.
 
 | Group | Monitors | Every |
 |---|---|---|
@@ -40,7 +40,7 @@ Two sources post to the Discord channel `#homelab`. Both reach Discord over the 
 | Media | Jellyfin, Sonarr, Radarr, Prowlarr, Kavita, LazyLibrarian; qBittorrent is paused while the VPN is down | 5 min |
 | Infrastructure | Ollama, Homepage, Grafana, Dozzle | 5 min |
 
-**Server-health script** (`/usr/local/bin/homelab-alerts.py`, `homelab-alerts.timer`, every 5 min): what Kuma can't see. It posts once when a problem starts, a daily reminder while it lasts, and once when it clears.
+**Server-health script** (`/usr/local/bin/homelab-alerts.py`, `homelab-alerts.timer`, every 5 min) covers what Kuma can't see. It posts when a problem starts, once a day while it lasts, and when it clears.
 
 - Disk ≥ 85 % (🔴 at 90 %) on `/`, `/mnt/tank`, `/mnt/photo-copy`.
 - Memory < 8 % available for 10 min; swap > 80 %.
@@ -48,13 +48,11 @@ Two sources post to the Discord channel `#homelab`. Both reach Discord over the 
 - Any failed systemd unit.
 - Backups: no new Terraria tar or app dump in 26 h; the Immich photo copy log not reporting `OK`.
 - Tailscale down on the VM, the watchdog having restarted it, the Proxmox host offline on the tailnet, or a key expiring within 14 days.
-- **Silencing:** add the alert's key (e.g. `container:gluetun`) to `/etc/homelab-alerts/silence`. State lives in `/var/lib/homelab-alerts/state.json`. Test with `homelab-alerts.py --dry-run`.
-
-The webhook URL is in Vaultwarden, copied to a root-only file under `~/docker/management/secrets/`.
+- To silence an alert, add its key (e.g. `container:gluetun`) to `/etc/homelab-alerts/silence`. Test with `homelab-alerts.py --dry-run`. The webhook URL is in Vaultwarden, copied under `~/docker/management/secrets/`.
 
 **Gaps:**
 
-- **The server going down entirely is not detected:** a power cut, an internet outage or a frozen VM takes Kuma and the script down with it. An outside "dead man's switch" (e.g. Healthchecks.io) would cover this; not set up.
+- **The server going down entirely is not detected:** a power cut, an internet outage or a frozen VM silences both. That would need an outside check (e.g. Healthchecks.io).
 - **Proxmox host:** its own 05:00 backup isn't checked; the VM can't see it.
 - **Per-container metrics:** add cAdvisor, so you can see which container is eating RAM.
 - A second `prometheus/prometheus.yml` in the stack folder is unused; delete it to avoid confusion.
