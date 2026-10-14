@@ -85,7 +85,7 @@ Details: [architecture/networking-and-security.md](architecture/networking-and-s
 - 🟠 **Urgent:** Reseat the host's M.2 SSD; off-site copy of photos and dumps.
 - 🌐 **Mush is public** since 2026-10-11; a real phone sign-up test is left.
 - 🎮 **Next project:** Game streaming to the Retroid with Wolf + Moonlight (RAM upgrade done).
-- 🟡 **Also:** Monitoring alerts to Discord, test-restore the VM backup, tune Immich jobs, Pi-hole ad blocking (after alerts).
+- 🟡 **Also:** renew Mullvad (VPN alerts are silenced until then), test-restore the VM backup, tune Immich jobs, Pi-hole ad blocking.
 - 📋 **Full List:** See [roadmap/ROADMAP.md](roadmap/ROADMAP.md) for detailed task tracking and future architecture plans.
 
 ## Keeping these docs current

@@ -1,6 +1,6 @@
 # Roadmap
 
-> Planned work, tech debt and wishlist for the homelab. Last updated 2026-10-06.
+> Planned work, tech debt and wishlist for the homelab. Last updated 2026-10-13.
 > Each task says **why** it matters and links to where the details live. Tick the box when done and move the line to [Done](#-done). Problems and their fixes are in the [incident log](../runbooks/incident-log.md).
 
 **Legend:** 🔴 in progress · 🟠 urgent (risk of losing data) · 🟡 soon · ⚪ someday · ✅ done
@@ -35,9 +35,8 @@ Play Sekiro and Ghost of Tsushima from the server on the Retroid Pocket Flip 2 (
 
 ## 🟡 Mid-term infrastructure upgrades
 
-- [ ] **Pi-hole as the tailnet's DNS** for ad blocking, after monitoring alerts exist.
-- [ ] **Mullvad renewal reminder:** write down the paid-until date when renewing (gluetun goes down silently when it runs out, as on ~2026-09-27), and get a reminder about a week before, as a Discord alert once those exist. → [services/media.md](../services/media.md)
-- [ ] **Monitoring alerts to Discord** (memory, swap, disk, services down, failed nightly backups). Waiting on a Discord webhook. → [services/management.md](../services/management.md#monitoring-gaps)
+- [ ] **Pi-hole as the tailnet's DNS** for ad blocking (monitoring alerts now exist).
+- [ ] **Renew Mullvad** (gluetun unhealthy since ~2026-09-27). Then: `docker restart gluetun qbittorrent`, remove `container:gluetun` and `container:qbittorrent` from `/etc/homelab-alerts/silence`, un-pause Kuma's qBittorrent monitor, and write down the paid-until date for a `#homelab` reminder a week before the next expiry. → [services/media.md](../services/media.md)
 - [ ] **Patching from now on:** `apt update && apt full-upgrade` monthly (or `unattended-upgrades`), and `docker compose pull` for the internet-facing containers (portfolio nginx, Mush nginx, Supabase Kong/auth/rest/storage/realtime, Minecraft, Playit).
 
 ## ⚪ Backlog / wishlist
@@ -45,12 +44,22 @@ Play Sekiro and Ghost of Tsushima from the server on the Retroid Pocket Flip 2 (
 
 - [ ] Web terminals (ttyd sidecars) and embedded game terminals. *(phases 3.4, 5.3)*
 - [ ] Heavy local AI workstation (RX 9070 XT). *(phase 4.1)*
-- [ ] **Local agent on the RX 9070 XT:** the desktop serves Qwen3.8-27B (Q6_K) over Tailscale; Hermes Agent runs on the VM for any project. First use: job applications from career-ops (shared tracker, CV and profile with Claude Code), driving Chrome on the VM's noVNC screen and stopping at the final Submit. Runs with a 6 GB memory cap (`hermes-vnc`; was 2.5 GB before the RAM upgrade).
+- [ ] **Local agent on the RX 9070 XT:**
+  - **Working:** the desktop serves Qwen3.6-35B-A3B over Tailscale and scores job postings for career-ops; scripts auto-fill Workday on the VM's noVNC screen 2, stopping at the final Submit; job emails update the tracker and applied sheet.
+  - **Next:** Greenhouse/Lever/Ashby auto-fill, then a supervised nightly run (no schedule until the owner trusts it). → [services/ai-tools.md](../services/ai-tools.md#job-application-automation)
 - [ ] Wake-on-LAN remote desktop power management. *(phase 4.2)*
 - [ ] Custom React dashboard with live service integration (Mush + Supabase). *(phases 5.1–5.2)*
 
 ## ✅ Done
 
+- ✅ Monitoring alerts to Discord `#homelab`:
+  - a server-health script every 5 min (disk, memory, swap, containers, failed units, backups, Tailscale);
+  - Uptime-Kuma restored from its pre-reset data, with 22 monitors including the public sites (2026-10-13).
+- ✅ n8n job-email workflow:
+  - reads the full email (`num_ctx` 8192);
+  - cleaner Discord cards with an "Open email" link;
+  - updates the job tracker and applied sheet through `email-sync-listener` (2026-10-13).
+- ✅ Leftover `lms-relay` unit removed (2026-10-13).
 - ✅ Media apps' pre-Sep-8 settings restored and fixed for the current setup; logins off except Kavita (2026-10-12).
 - ✅ VM memory watch closed: 22 GB VM; swap 1.5 of 8 GB after a day of use, down from 5.7 GB before the RAM upgrade (2026-10-12).
 - ✅ Mush's main address is its own domain: canonical, sitemap and share tags moved; the old Vercel copy redirects every path there (2026-10-12).
