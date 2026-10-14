@@ -56,6 +56,5 @@ The webhook URL is in Vaultwarden, copied to a root-only file under `~/docker/ma
 
 - **The server going down entirely is not detected:** a power cut, an internet outage or a frozen VM takes Kuma and the script down with it. An outside "dead man's switch" (e.g. Healthchecks.io) would cover this; not set up.
 - **Proxmox host:** its own 05:00 backup isn't checked; the VM can't see it.
-- **Uptime-Kuma's `kuma.db` is not in the nightly app dumps** (only the whole-VM backup covers it); its monitors and the Discord notification would be lost with the folder. Add it to `app-db-dumps.sh`.
 - **Per-container metrics:** add cAdvisor, so you can see which container is eating RAM.
 - A second `prometheus/prometheus.yml` in the stack folder is unused; delete it to avoid confusion.

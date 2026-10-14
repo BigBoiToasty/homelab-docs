@@ -71,6 +71,7 @@ The tools themselves live in career-ops, which is private and not in this repo; 
 | `email-sync-listener.service` | VM, `/usr/local/bin/email-sync-listener.py` | Listens only on the `server-net` gateway (`172.22.0.1:8765`), with a token (stored in n8n as a Header Auth credential). On a ping it waits 30 s, then runs career-ops' `email-sync.mjs`. |
 | `email-sync.mjs` | career-ops | Rejection → tracker *Rejected* and sheet *Rejected*; online assessment → *Responded* and *Online Assessment*; interview → *Interview*; confirmation → *Applied*, or a new sheet row if the company is missing. It changes only exact single matches and lists the rest. It reports to Discord `#job-agent`. |
 | Applied-jobs Google Sheet | Google | A service account (key in Vaultwarden) with Editor on that one sheet. To allow creating its key, the Google Cloud organization policies `iam.disableServiceAccountKeyCreation` and `iam.managed.disableServiceAccountKeyCreation` were turned off. Turning them back on keeps the existing key working. |
+| `oa-reminder.timer` | VM, 12:00 daily | Posts open online assessments (deadline, email link) to `#job-agent`; silent when there are none. |
 | Agent Chrome | VM, Xvfb `:98`, noVNC screen 2 (`:3011`) | Auto-fills Workday forms (it never submits), and reads jobright.ai and pages that block headless browsers. Signed in to Jobright. |
 
 **Discord channels:** `#jobs` (n8n email cards), `#job-agent` (the agent's messages: summaries, what's ready to submit), `#homelab` (server alerts; see [management](management.md#monitoring-and-alerts)).

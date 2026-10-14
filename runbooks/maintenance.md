@@ -35,7 +35,7 @@ grep -h 'Finished Backup\|ERROR' /hddpool/backups/dump/vzdump-qemu-100-*.log | t
 
 ### Nightly app database dumps
 
-`/usr/local/bin/app-db-dumps.sh` (04:40) dumps the Vaultwarden, n8n, Immich and Supabase databases (plus Vaultwarden's RSA key and n8n's encryption key) to `/root/backups/app-dumps/<date>/`, keeps 7 days, and the 05:00 VM backup carries them to hddpool. Log: `/var/log/app-db-dumps.log`. Restore: [disaster-recovery §3](disaster-recovery.md#3-per-service-data-recovery).
+`/usr/local/bin/app-db-dumps.sh` (04:40) dumps the Vaultwarden, n8n, Immich, Supabase, Uptime-Kuma and Jellyfin databases (the last two since 2026-10-13) (plus Vaultwarden's RSA key and n8n's encryption key) to `/root/backups/app-dumps/<date>/`, keeps 7 days, and the 05:00 VM backup carries them to hddpool. Log: `/var/log/app-db-dumps.log`. Restore: [disaster-recovery §3](disaster-recovery.md#3-per-service-data-recovery).
 
 ### Nightly Immich photo copy
 
