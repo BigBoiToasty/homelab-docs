@@ -37,6 +37,7 @@ Play Sekiro and Ghost of Tsushima from the server on the Retroid Pocket Flip 2 (
 
 - [ ] **Pi-hole as the tailnet's DNS** for ad blocking (monitoring alerts now exist).
 - [ ] **Renew Mullvad** (gluetun unhealthy since ~2026-09-27). Then: `docker restart gluetun qbittorrent`, remove `container:gluetun` and `container:qbittorrent` from `/etc/homelab-alerts/silence`, un-pause Kuma's qBittorrent monitor, and write down the paid-until date for a `#homelab` reminder a week before the next expiry. → [services/media.md](../services/media.md)
+- [ ] **Set up Grafana dashboards** (it has none yet; Prometheus already collects VM metrics). Once it holds real dashboards, add `grafana.db` (volume `monitoring_grafana_data`) to the clean nightly dumps in `app-db-dumps.sh`, like Kuma and Jellyfin. → [services/management.md](../services/management.md#monitoring-and-alerts)
 - [ ] **Patching from now on:** `apt update && apt full-upgrade` monthly (or `unattended-upgrades`), and `docker compose pull` for the internet-facing containers (portfolio nginx, Mush nginx, Supabase Kong/auth/rest/storage/realtime, Minecraft, Playit).
 
 ## ⚪ Backlog / wishlist
