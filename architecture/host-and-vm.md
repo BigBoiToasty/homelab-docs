@@ -128,3 +128,5 @@ flowchart LR
 - **Not attached as datasets:** `hddpool/media`, `hddpool/backups`, `fastpool/photos`, `fastpool/appdata`. Media and backups already live on the HDDs through `sdb`, so that goal is met. There are no ZFS/NFS mounts inside the VM. `/mnt/media` and `/mnt/photos` are empty folders on the boot disk, prepared but never used.
 
 Which path belongs to which app: [services/README.md → Where data lives](../services/README.md#where-data-lives).
+
+**Swappiness:** `vm.swappiness = 10` in the VM since 2026-10-19 (`/etc/sysctl.d/99-swappiness.conf`). The default 60 parked ~5 GB of idle pages in the 8 GB swap even with RAM free.
