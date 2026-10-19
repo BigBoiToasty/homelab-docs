@@ -89,7 +89,8 @@ Compose project `~/docker/interview-coach` (added 2026-10-18). A tailnet-only si
 
 - **How grading works:** the browser measures pitch variation, loudness and sentence-end fade. Video never leaves the browser; only the audio is uploaded. Whisper returns words with timings, the coach computes pace, pauses and fillers, and Qwen on the desktop (LM Studio, `qwen/qwen3.6-35b-a3b`) grades story, structure, cadence and tone, then writes a stronger answer using only facts from `cv.md`.
 - **Needs the desktop on:** with LM Studio down, the page shows "Qwen offline" and grading fails; `desktop-llm up` loads the model.
-- **Questions:** one file per company in `app/questions/` (`visa.json`, `general.json`). The company list also marks companies whose tracker row is at Interview or Offer stage. A new file shows up without a restart.
+- **Questions:** one file per company in `/docker/appdata/interview-coach/data/questions/` (seeded once from `app/questions/`). Add questions from the page ("+ Add a question") or drop in a new company file; no restart needed. The company list also marks companies whose tracker row is at Interview or Offer stage.
+- **Grading structure** depends on the question type: STAR for behavioral, present→past→future for the intro, and so on (`SHAPE` in `app/server.mjs`).
 
 ## Backups
 
