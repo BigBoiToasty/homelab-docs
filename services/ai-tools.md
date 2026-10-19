@@ -78,6 +78,19 @@ Discord channels: `#jobs` (n8n cards), `#job-agent` (the agent's messages), `#ho
 
 1 GiB container limit, default Java heap (~256 MiB), heap dumps turned off (`JAVA_CUSTOM_OPTS=-XX:-HeapDumpOnOutOfMemoryError`). History: [incident log](../runbooks/incident-log.md).
 
+## Interview coach
+
+Compose project `~/docker/interview-coach` (added 2026-10-18). A tailnet-only practice page at `https://interview.example.com`: you answer interview questions on camera, and it grades how you speak. The page also serves the career-ops unapplied-pipeline page at `/pipeline`.
+
+| Container | Does | Memory cap | Notes |
+|---|---|---|---|
+| interview-whisper | Speech-to-text (faster-whisper `large-v3-turbo`, int8 on the GPU) with word timestamps | 3 GiB | Loads on first use (~1.2 GB GPU memory) and unloads after 5 idle minutes. Falls back to CPU `small.en` if the GPU is full. Model cache: `/docker/appdata/interview-coach/models` |
+| interview-coach | Page + grading API (`node:22-alpine`, no dependencies) | 256 MiB | Listens on `172.17.0.1:8790` only. Saves attempts to `/docker/appdata/interview-coach/data/sessions.jsonl` |
+
+- **How grading works:** the browser measures pitch variation, loudness and sentence-end fade. Video never leaves the browser; only the audio is uploaded. Whisper returns words with timings, the coach computes pace, pauses and fillers, and Qwen on the desktop (LM Studio, `qwen/qwen3.6-35b-a3b`) grades story, structure, cadence and tone, then writes a stronger answer using only facts from `cv.md`.
+- **Needs the desktop on:** with LM Studio down, the page shows "Qwen offline" and grading fails; `desktop-llm up` loads the model.
+- **Questions:** `app/questions.json` (Visa SWE intern set). Edit it and restart the `coach` container.
+
 ## Backups
 
 Only n8n matters here (see above). Ollama models and Stirling data can be downloaded again.
