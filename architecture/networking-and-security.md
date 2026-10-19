@@ -34,7 +34,7 @@ flowchart LR
 | `mush.conf` | `mush.example.com` | 443, 80→301 | `host.docker.internal:8085` | 200 |
 | `n8n.conf` | `n8n.example.com` | 443, 80→301 | `172.17.0.1:5678` | 200 |
 | `pdf.conf` | `pdf.example.com` | 443, 80→301 (**fixed**, was HTTP-only) | `host.docker.internal:8081` | 200 |
-| `interview.conf` (added 2026-10-18) | `interview.example.com` | 443, 80→301 | `172.17.0.1:8790` (30 MB uploads, 300 s timeout) | 200 |
+| `career.conf` (added 2026-10-18 as `interview.conf`, renamed 2026-10-19) | `career.example.com`; `interview.example.com` 301s to it | 443, 80→301 | `172.17.0.1:8790` (30 MB uploads, 300 s timeout) | 200 |
 | `vaultwarden.conf` (added 2026-09-25) | `vaultwarden.example.com` | 443, 80→301 | `host.docker.internal:8222` | 200 (DNS record still to add) |
 | `supabase.conf` | `studio.example.com` (was `supabase.`, renamed 2026-10-11) | 443, 80→301 | `host.docker.internal:8000` (Kong; `/` is Studio) | 401 (Studio login prompt; expected) |
 
