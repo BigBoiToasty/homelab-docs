@@ -80,7 +80,7 @@ Discord channels: `#jobs` (n8n cards), `#job-agent` (the agent's messages), `#ho
 
 ## Interview coach
 
-Compose project `~/docker/interview-coach` (added 2026-10-18). A tailnet-only practice page at `https://interview.example.com`: you answer interview questions on camera, and it grades how you speak. The page also serves the career-ops unapplied-pipeline page at `/pipeline`.
+Compose project `~/docker/interview-coach` (added 2026-10-18). A tailnet-only site at `https://interview.example.com` with two pages that share one stylesheet and top bar: `/interview` (pick a company, then practice its questions on camera and get graded on how you speak) and `/pipeline` (the career-ops unapplied-pipeline page, regenerated with `node gen-unapplied.mjs` in career-ops; the file is mounted live).
 
 | Container | Does | Memory cap | Notes |
 |---|---|---|---|
@@ -89,7 +89,7 @@ Compose project `~/docker/interview-coach` (added 2026-10-18). A tailnet-only pr
 
 - **How grading works:** the browser measures pitch variation, loudness and sentence-end fade. Video never leaves the browser; only the audio is uploaded. Whisper returns words with timings, the coach computes pace, pauses and fillers, and Qwen on the desktop (LM Studio, `qwen/qwen3.6-35b-a3b`) grades story, structure, cadence and tone, then writes a stronger answer using only facts from `cv.md`.
 - **Needs the desktop on:** with LM Studio down, the page shows "Qwen offline" and grading fails; `desktop-llm up` loads the model.
-- **Questions:** `app/questions.json` (Visa SWE intern set). Edit it and restart the `coach` container.
+- **Questions:** one file per company in `app/questions/` (`visa.json`, `general.json`). The company list also marks companies whose tracker row is at Interview or Offer stage. A new file shows up without a restart.
 
 ## Backups
 
