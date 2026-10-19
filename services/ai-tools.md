@@ -84,12 +84,12 @@ Compose project `~/docker/interview-coach` (added 2026-10-18). A tailnet-only si
 
 | Container | Does | Memory cap | Notes |
 |---|---|---|---|
-| interview-whisper | Speech-to-text (faster-whisper `large-v3-turbo`, int8 on the GPU) with word timestamps | 3 GiB | Loads on first use (~1.2 GB GPU memory) and unloads after 5 idle minutes. Falls back to CPU `small.en` if the GPU is full. Model cache: `/docker/appdata/interview-coach/models` |
+| interview-whisper | Speech-to-text (faster-whisper `large-v3-turbo`, int8 on the GPU) with word timestamps | 3 GiB | Loads on first use (~1.2 GB GPU memory, ~2.7 GB RAM) and, after 5 idle minutes, **exits** so Docker restarts a ~45 MB idle process (unloading alone kept ~4 GB in RAM and swap; seen 2026-10-19 with swap at 81%). First answer after a break takes 10–20 s longer. Falls back to CPU `small.en` if the GPU is full. Model cache: `/docker/appdata/interview-coach/models` |
 | interview-coach | Page + grading API (`node:22-alpine`, no dependencies) | 256 MiB | Listens on `172.17.0.1:8790` only. Saves attempts to `/docker/appdata/interview-coach/data/sessions.jsonl` |
 
 - **How grading works:** the browser measures pitch variation, loudness and sentence-end fade. Video never leaves the browser; only the audio is uploaded. Whisper returns words with timings, the coach computes pace, pauses and fillers, and Qwen on the desktop (LM Studio, `qwen/qwen3.6-35b-a3b`) grades story, structure, cadence and tone, then writes a stronger answer using only facts from `cv.md`.
 - **Needs the desktop on:** with LM Studio down, the page shows "Qwen offline" and grading fails; `desktop-llm up` loads the model.
-- **Questions:** one file per company in `/docker/appdata/interview-coach/data/questions/` (seeded once from `app/questions/`). Add questions from the page ("+ Add a question") or drop in a new company file; no restart needed. The company list also marks companies whose tracker row is at Interview or Offer stage.
+- **Questions:** one file per company in `/docker/appdata/interview-coach/data/questions/` (seeded once from `app/questions/`). Add, edit or delete questions from the page, or use "Suggest questions for me" (Qwen writes them from what you want to practise, tailored to the company and `cv.md`); or drop in a new company file. No restart needed. The company list also marks companies whose tracker row is at Interview or Offer stage.
 - **Grading structure** depends on the question type: STAR for behavioral, present→past→future for the intro, and so on (`SHAPE` in `app/server.mjs`).
 
 ## Backups
