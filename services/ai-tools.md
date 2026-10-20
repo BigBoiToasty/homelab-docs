@@ -80,7 +80,7 @@ Discord channels: `#jobs` (n8n cards), `#job-agent` (the agent's messages), `#ho
 
 ## Interview coach
 
-Compose project `~/docker/interview-coach` (added 2026-10-18). A tailnet-only site at `https://career.example.com` (the old `interview.` name redirects) with four pages that share one stylesheet and top bar: `/interview` (pick a company, then practice its questions on camera and get graded on how you speak), `/coding` (coding problems per company you're interviewing with), `/reviews` (other candidates' interview write-ups per company) and `/pipeline` (the career-ops unapplied-pipeline page; the file is mounted live). systemd `career-pipeline.path` reruns `gen-unapplied.mjs` a minute after the tracker (`data/applications.md`) changes, and `career-pipeline.timer` reruns it daily at 06:30 for edits made directly in the Google Sheet. Logs: `journalctl -u career-pipeline.service`.
+Compose project `~/docker/interview-coach` (added 2026-10-18). A tailnet-only site at `https://career.example.com` with four pages that share one stylesheet and top bar: `/interview` (pick a company, then practice its questions on camera and get graded on how you speak), `/coding` (coding problems per company you're interviewing with), `/reviews` (other candidates' interview write-ups per company) and `/pipeline` (the career-ops unapplied-pipeline page; the file is mounted live). systemd `career-pipeline.path` reruns `gen-unapplied.mjs` a minute after the tracker (`data/applications.md`) changes, and `career-pipeline.timer` reruns it daily at 06:30 for edits made directly in the Google Sheet. Logs: `journalctl -u career-pipeline.service`.
 
 | Container | Does | Memory cap | Notes |
 |---|---|---|---|

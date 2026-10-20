@@ -1,6 +1,6 @@
 # Roadmap
 
-> Planned work, tech debt and wishlist for the homelab. Last updated 2026-10-19.
+> Planned work, tech debt and wishlist for the homelab. Last updated 2026-10-20.
 > Each task says **why** it matters and links to where the details live. Tick the box when done and move the line to [Done](#-done). Problems and their fixes are in the [incident log](../runbooks/incident-log.md).
 
 **Legend:** 🔴 in progress · 🟠 urgent (risk of losing data) · 🟡 soon · ⚪ someday · ✅ done
@@ -64,6 +64,7 @@ Play Sekiro and Ghost of Tsushima from the server on the Retroid Pocket Flip 2 (
 
 ## ✅ Done
 
+- ✅ Career site: old `interview.` hostname retired (nginx redirect and DNS record removed); `career.` is the only name (2026-10-20).
 - ✅ Monitoring alerts to Discord `#homelab`: a server-health script, plus Uptime-Kuma restored with 22 monitors; Kuma and Jellyfin added to the nightly dumps (2026-10-13).
 - ✅ n8n job emails: full-email reading, cleaner Discord cards, tracker and sheet sync (2026-10-13).
 - ✅ Media apps' pre-Sep-8 settings restored and fixed for the current setup; logins off except Kavita (2026-10-12).
