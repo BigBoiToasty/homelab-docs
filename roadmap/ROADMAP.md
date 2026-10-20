@@ -1,6 +1,6 @@
 # Roadmap
 
-> Planned work, tech debt and wishlist for the homelab. Last updated 2026-10-13.
+> Planned work, tech debt and wishlist for the homelab. Last updated 2026-10-19.
 > Each task says **why** it matters and links to where the details live. Tick the box when done and move the line to [Done](#-done). Problems and their fixes are in the [incident log](../runbooks/incident-log.md).
 
 **Legend:** 🔴 in progress · 🟠 urgent (risk of losing data) · 🟡 soon · ⚪ someday · ✅ done
@@ -53,6 +53,12 @@ Play Sekiro and Ghost of Tsushima from the server on the Retroid Pocket Flip 2 (
 - [ ] **Local agent on the RX 9070 XT:**
   - **Working:** Qwen3.6 on the desktop scores job postings; Workday auto-fill stops before Submit; job emails update the tracker and sheet.
   - **Next:** Greenhouse/Lever/Ashby auto-fill, then a supervised nightly run. → [services/ai-tools.md](../services/ai-tools.md#job-application-automation)
+- [ ] **Open-source the job-search toolkit** (career-ops + interview coach) as a public GitHub repo that others can run.
+  - A localhost web app: browse and filter jobs, choose which companies get a full evaluation, and practise interviews.
+  - Bring your own model (a local LLM through LM Studio/Ollama, or Claude for the harder steps).
+  - Users add their own job sources (GitHub repos, careers pages) that are scanned and triaged automatically.
+  - Low token use: scripts do the scraping, filtering and form filling; a model is only called for scoring and the short written answers. The upstream career-ops used up the Claude limit evaluating about 5 job postings.
+  - Start after the 2026-10-20 interview. Remove personal data (profile, CV, tracker, secrets) from the repo first.
 - [ ] Wake-on-LAN remote desktop power management. *(phase 4.2)*
 - [ ] Custom React dashboard with live service integration (Mush + Supabase). *(phases 5.1–5.2)*
 
