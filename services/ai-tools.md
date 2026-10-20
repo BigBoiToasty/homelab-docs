@@ -80,7 +80,7 @@ Discord channels: `#jobs` (n8n cards), `#job-agent` (the agent's messages), `#ho
 
 ## Interview coach
 
-Compose project `~/docker/interview-coach` (added 2026-10-18). A tailnet-only site at `https://career.example.com` (the old `interview.` name redirects) with two pages that share one stylesheet and top bar: `/interview` (pick a company, then practice its questions on camera and get graded on how you speak) and `/pipeline` (the career-ops unapplied-pipeline page; the file is mounted live). systemd `career-pipeline.path` reruns `gen-unapplied.mjs` a minute after the tracker (`data/applications.md`) changes, and `career-pipeline.timer` reruns it daily at 06:30 for edits made directly in the Google Sheet. Logs: `journalctl -u career-pipeline.service`.
+Compose project `~/docker/interview-coach` (added 2026-10-18). A tailnet-only site at `https://career.example.com` (the old `interview.` name redirects) with three pages that share one stylesheet and top bar: `/interview` (pick a company, then practice its questions on camera and get graded on how you speak), `/coding` (coding problems per company you're interviewing with) and `/pipeline` (the career-ops unapplied-pipeline page; the file is mounted live). systemd `career-pipeline.path` reruns `gen-unapplied.mjs` a minute after the tracker (`data/applications.md`) changes, and `career-pipeline.timer` reruns it daily at 06:30 for edits made directly in the Google Sheet. Logs: `journalctl -u career-pipeline.service`.
 
 | Container | Does | Memory cap | Notes |
 |---|---|---|---|
@@ -91,6 +91,7 @@ Compose project `~/docker/interview-coach` (added 2026-10-18). A tailnet-only si
 - **Playback:** each graded answer's audio is kept in `/docker/appdata/interview-coach/data/audio/<id>.webm`. The result shows a waveform with Qwen's timestamped "did well"/"to fix" moments, ticks for fillers and long pauses, and a transcript that highlights as it plays (click a word or marker to jump). History rows expand into a replay viewer. A low-res replay video (426×320, 12 fps, VP9 ~200 kbps, about 2–3 MB per 90 s answer) is saved to `data/video/`; the coach keeps at most 500 MB of videos and deletes the oldest past that.
 - **Needs the desktop on:** with LM Studio down, the page shows "Qwen offline" and grading fails; `desktop-llm up` loads the model.
 - **Questions:** one file per company in `/docker/appdata/interview-coach/data/questions/` (seeded once from `app/questions/`). Add, edit or delete questions from the page, or use "Suggest questions for me" (Qwen writes them from what you want to practise, tailored to the company and `cv.md`); or drop in a new company file. No restart needed. The company list also marks companies whose tracker row is at Interview or Offer stage.
+- **Coding practice:** one file per company in `/docker/appdata/interview-coach/data/coding/` (seeded once per file from `app/coding/`), listing problems candidates reported from that company's technical rounds plus core patterns, each with a LeetCode link, difficulty, source and a short approach. Ticking a problem saves the date in that file. Companies at Interview stage without a file are listed so one can be researched.
 - **Grading structure** depends on the question type: STAR for behavioral, present→past→future for the intro, and so on (`SHAPE` in `app/server.mjs`).
 
 ## Backups
