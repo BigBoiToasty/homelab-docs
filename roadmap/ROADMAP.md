@@ -18,6 +18,7 @@
 Things that can lose data or are one-line fixes.
 
 
+- [ ] **Long SMART test on HDD `sdj`** (2 pending sectors, 1 uncorrectable); replace it if the counts rise. hddpool is raidz1, so this disk is its only spare margin. → [incident-log](../runbooks/incident-log.md#2026-10-26--hdd-sdj-has-unreadable-sectors-)
 - [ ] **Reseat the 256 GB M.2 SSD in the Proxmox host** (connection errors; flash healthy), then recheck its SMART counters. → [host-and-vm.md](../architecture/host-and-vm.md#proxmox-host)
 - [ ] **Off-site copy** of the photos and database dumps (e.g. Backblaze B2).
 

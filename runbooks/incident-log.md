@@ -6,6 +6,12 @@ Everything that has gone wrong, newest first: what it looked like, why it happen
 
 ---
 
+### 2026-10-26 · HDD `sdj` has unreadable sectors 🟡
+- **Symptom:** SMART on hddpool member `sdj`: `Current_Pending_Sector` 2, `Offline_Uncorrectable` 1, at 5202 power-on hours. Overall health PASSED, 0 reallocated, 0 CRC errors. `zpool status` clean; the last scrub (2026-09-27, 3 min 39 s) found 0 errors, but a scrub reads only blocks that hold data.
+- **Why it matters:** hddpool is raidz1, so `sdj` failing leaves the VM data disk (Immich photos, media) and the VM backups with no redundancy, and a rebuild has to read every sector of the other two disks.
+- **Next:** long self-test `smartctl -t long /dev/sdj` on the host. Counts back at 0 and staying there: keep watching. Counts rising or the test failing: `zpool replace hddpool sdj /dev/disk/by-id/<new-disk>` while the pool is still healthy.
+- **If it comes back:** `smartctl -a /dev/sdj | grep -iE "pending|uncorrectable|reallocated"` on the host.
+
 ### 2026-10-13 · Uptime-Kuma empty since the September data-path reset ✅
 - **Symptom:** 0 monitors, 0 notifications, a fresh login.
 - **Cause:** the 2026-09-08 data-path change (same as Vaultwarden). The container pointed at an empty `/docker/media/uptime-kuma`; the old data stayed in `/root/docker/media/uptime-kuma`.
