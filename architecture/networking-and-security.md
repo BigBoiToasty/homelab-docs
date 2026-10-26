@@ -35,6 +35,7 @@ flowchart LR
 | `n8n.conf` | `n8n.example.com` | 443, 80→301 | `172.17.0.1:5678` | 200 |
 | `pdf.conf` | `pdf.example.com` | 443, 80→301 (**fixed**, was HTTP-only) | `host.docker.internal:8081` | 200 |
 | `career.conf` (added 2026-10-18 as `interview.conf`, renamed 2026-10-19) | `career.example.com` | 443, 80→301 | `172.17.0.1:8790` (30 MB uploads, 300 s timeout) | 200 |
+| `monitor.conf` (added 2026-10-25) | `monitor.example.com` (DNS A record to the tailnet IP still to add) | 443, 80→301 | `/` static page from `www/monitor` (nginx-proxy mounts `./www` read-only); `/grafana/` → `172.17.0.1:3005` with websocket upgrade | 200 |
 | `vaultwarden.conf` (added 2026-09-25) | `vaultwarden.example.com` | 443, 80→301 | `host.docker.internal:8222` | 200 (DNS record still to add) |
 | `supabase.conf` | `studio.example.com` (was `supabase.`, renamed 2026-10-11) | 443, 80→301 | `host.docker.internal:8000` (Kong; `/` is Studio) | 401 (Studio login prompt; expected) |
 

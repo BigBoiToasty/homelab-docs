@@ -25,6 +25,7 @@ One VM runs all the Docker containers, rather than one VM or LXC per service. Th
 | Drives (host `lsblk`, 2026-10-04) | 1 × 256 GB M.2 **SATA** SSD (probably the Proxmox system drive; not NVMe), 11 × 960 GB SAS SSDs (Samsung PM863-class and SanDisk), 3 × 1 TB WD HDDs. Pool membership not recorded yet (`zpool status`) |
 | M.2 SSD health | SMART passes, but 77 connection (CRC) errors; reseat planned |
 | GPU | NVIDIA RTX 2060 SUPER 8 GB, PCIe passthrough to VM 100 (`vfio-pci` on the host) |
+| Metrics | `prometheus-node-exporter` (Debian package) on port 9100 since 2026-10-25: CPU temperatures, ZFS pool state, host disks and systemd units; scraped by Prometheus on the VM as job `pve-host` ([management](../services/management.md)) |
 | Backup jobs | VM 100 nightly at 05:00 to `hddpool-backups`, boot disk only (see [below](#vm-100-backup)). The photo-copy disk (`scsi2`) has *Backup* unchecked |
 
 Host RAM: 32 GB (4 × 8 GB DDR4) since 2026-10-10. VM 22 GB since 2026-10-11 (was 11), leaving ~10 GB for Proxmox, the ZFS read cache (ARC, Proxmox default cap 10 %) and the nightly backup. With the GPU passed through, all of the VM's RAM is locked on the host at all times; it can't be lent back.
