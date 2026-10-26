@@ -65,6 +65,7 @@ Play Sekiro and Ghost of Tsushima from the server on the Retroid Pocket Flip 2 (
 
 ## ✅ Done
 
+- ✅ Career site study guides: graded quiz mode with spaced review, spoken answers and Qwen-written questions (2026-10-26). → [ai-tools](../services/ai-tools.md)
 - ✅ Career site: old `interview.` hostname retired (nginx redirect and DNS record removed); `career.` is the only name (2026-10-20).
 - ✅ Monitoring alerts to Discord `#homelab`: a server-health script, plus Uptime-Kuma restored with 22 monitors; Kuma and Jellyfin added to the nightly dumps (2026-10-13).
 - ✅ n8n job emails: full-email reading, cleaner Discord cards, tracker and sheet sync (2026-10-13).
