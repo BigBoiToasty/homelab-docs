@@ -42,7 +42,7 @@ Play Sekiro and Ghost of Tsushima from the server on the Retroid Pocket Flip 2 (
   - note the paid-until date for a renewal reminder.
 
   → [services/media.md](../services/media.md)
-- [ ] **Homelab monitor (prototype up 2026-10-25):** add the `monitor` DNS A record (tailnet IP), revise the design, then add `grafana.db` to the nightly dumps. Later: cAdvisor for per-container stats, a SMART exporter on the host. → [services/management.md](../services/management.md#homelab-monitor-httpsmonitorexamplecom)
+- [ ] **Homelab monitor (prototype live 2026-10-25):** revise the design, then add `grafana.db` to the nightly dumps. Later: cAdvisor for per-container stats, a SMART exporter on the host. → [services/management.md](../services/management.md#homelab-monitor-httpsmonitorexamplecom)
 - [ ] **Patching from now on:** `apt update && apt full-upgrade` monthly (or `unattended-upgrades`), and `docker compose pull` for the internet-facing containers (portfolio nginx, Mush nginx, Supabase Kong/auth/rest/storage/realtime, Minecraft, Playit).
 
 ## ⚪ Backlog / wishlist
