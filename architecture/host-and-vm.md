@@ -22,7 +22,7 @@ One VM runs all the Docker containers, rather than one VM or LXC per service. Th
 | Proxmox VE | 9.2.x (pve-manager 9.2.4 on 2026-09-16) |
 | ZFS `fastpool` | SSD pool, 8.72 TB, **raidz2 of 10 SSDs** (survives any 2 disk failures; members listed by `wwn-` ID). Datasets: `appdata`, `photos`, `vms`, and VM 100's boot disk |
 | ZFS `hddpool` | HDD pool, **~1.76 TB usable** (checked 2026-09-26; the earlier 2.72 TB was not the usable size). **raidz1 of the 3 WD HDDs** `sdh`/`sdi`/`sdj` (survives 1 disk failure; members listed by `sdX` names, not stable IDs). Holds `vm-100-disk-0`, the VM's 1.5 TB data disk. Datasets `backups` and `media` exist but are empty |
-| Drives (host `lsblk`, 2026-10-04) | 1 × 256 GB M.2 **SATA** SSD (probably the Proxmox system drive; not NVMe), 11 × 960 GB SAS SSDs (Samsung PM863-class and SanDisk), 3 × 1 TB WD HDDs. 10 of the SSDs form fastpool, the 3 HDDs form hddpool; the 11th SSD is in neither pool (`zpool status`, 2026-10-26) |
+| Drives (host `lsblk` 2026-10-04, `zpool status` 2026-10-26) | 1 × 256 GB M.2 **SATA** SSD (the Proxmox system drive, confirmed by the owner; not NVMe, not in either pool), 10 × 960 GB SAS SSDs (Samsung PM863-class and SanDisk) forming fastpool, 3 × 1 TB WD HDDs forming hddpool |
 | M.2 SSD health | SMART passes, but 77 connection (CRC) errors; reseat planned |
 | HDD `sdj` health | SMART passes, but 2 pending sectors and 1 offline uncorrectable at 5202 h (2026-10-26); being watched ([incident](../runbooks/incident-log.md#2026-10-26--hdd-sdj-has-unreadable-sectors-)) |
 | GPU | NVIDIA RTX 2060 SUPER 8 GB, PCIe passthrough to VM 100 (`vfio-pci` on the host) |
